@@ -35,9 +35,7 @@ const APP_CONFIG = {
         }
     ],
 
-    // Default Seed Users
-    // Master Admin password: Qwerty123 (SHA-256: 77aae185203edc6357676db95caa25d0f398d402c1723e6a7b42cfe8d2967f2e)
-    // Other accounts password: password123 (SHA-256: ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f)
+    // Default Seed Users (Only Master Admin Nethil is registered; staff accounts can be created via the Global Staff Directory)
     defaultUsers: [
         {
             id: 'b0000000-0000-0000-0000-000000000001',
@@ -47,39 +45,6 @@ const APP_CONFIG = {
             role: 'MASTER_ADMIN',
             fullName: 'Nethil',
             assignedEventIds: [], // All events
-            status: 'ACTIVE',
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'b0000000-0000-0000-0000-000000000002',
-            username: 'event_admin',
-            email: 'sarah.event@techhorizon.com',
-            passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
-            role: 'EVENT_ADMIN',
-            fullName: 'Sarah Connor (Event Manager)',
-            assignedEventIds: ['a0000000-0000-0000-0000-000000000001'],
-            status: 'ACTIVE',
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'b0000000-0000-0000-0000-000000000003',
-            username: 'agent_marcus',
-            email: 'marcus.tickets@convention.org',
-            passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
-            role: 'TICKETING_AGENT',
-            fullName: 'Marcus Vance (Ticket Agent)',
-            assignedEventIds: ['a0000000-0000-0000-0000-000000000001'],
-            status: 'ACTIVE',
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'b0000000-0000-0000-0000-000000000004',
-            username: 'gate_scanner',
-            email: '', // Optional email
-            passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
-            role: 'TICKET_SCANNER',
-            fullName: 'Gate 1 Staff Scanner',
-            assignedEventIds: ['a0000000-0000-0000-0000-000000000001'],
             status: 'ACTIVE',
             createdAt: new Date().toISOString()
         }

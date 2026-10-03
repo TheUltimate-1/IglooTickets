@@ -411,33 +411,6 @@ VALUES
     'MASTER_ADMIN',
     '[]'::jsonb,
     'Nethil'
-),
-(
-    'b0000000-0000-0000-0000-000000000002',
-    'event_admin',
-    'admin@techhorizon.com',
-    'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
-    'EVENT_ADMIN',
-    '["a0000000-0000-0000-0000-000000000001"]'::jsonb,
-    'Event Coordinator Sarah'
-),
-(
-    'b0000000-0000-0000-0000-000000000003',
-    'agent_marcus',
-    'marcus@tickets.org',
-    'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
-    'TICKETING_AGENT',
-    '["a0000000-0000-0000-0000-000000000001"]'::jsonb,
-    'Ticketing Desk Marcus'
-),
-(
-    'b0000000-0000-0000-0000-000000000004',
-    'gate_scanner',
-    NULL,
-    'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
-    'TICKET_SCANNER',
-    '["a0000000-0000-0000-0000-000000000001"]'::jsonb,
-    'Gate 1 Scanner Station'
 ) ON CONFLICT (username) DO NOTHING;
 
 -- Production Slate: Clean tickets table ready for real attendee registration.

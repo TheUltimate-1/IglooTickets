@@ -34,12 +34,11 @@ No backend configuration or local build steps are required.
    cd IglooTickets
    ```
 2. Open `index.html` in your browser (Chrome, Safari, Edge, Firefox).
-3. The application runs immediately in **Demo Mode**, pre-configured with default events and staff accounts.
-4. Test all 4 user roles instantly using the top-right **Quick 1-Click Role Switcher**:
-   - 👑 **Master Admin** (`nethil` or `nethil2008@gmail.com` / `Qwerty123`)
-   - 🛡️ **Event Admin** (`event_admin` / `password123`)
-   - 🎟️ **Ticketing Agent** (`agent_marcus` / `password123`)
-   - 📱 **Gate Scanner** (`gate_scanner` / `password123` or PIN: Code `TECH26`, PIN `7788`)
+3. The application runs immediately with cloud database sync, pre-configured with the default event and Master Admin.
+4. Sign in with the pre-registered **Master Admin**:
+   - 👑 **Master Admin**: `nethil` or `nethil2008@gmail.com` / `Qwerty123`
+   - Additional staff roles (Event Admins, Ticketing Agents, Gate Scanners) can be provisioned at any time by Master Admin from the **Global Staff** tab.
+   - Quick Gate Scanner access is also available via Event Gate Code and PIN (e.g., Code `TECH26`, PIN `7788`).
 
 ---
 

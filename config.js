@@ -4,12 +4,16 @@
  */
 
 const APP_CONFIG = {
-    // Optional: Enter your Supabase credentials here or configure them via the In-App Setup Wizard
-    supabaseUrl: localStorage.getItem('eventshield_sb_url') || '',
-    supabaseAnonKey: localStorage.getItem('eventshield_sb_key') || '',
+    // =========================================================================
+    // ⚡ SUPABASE CLOUD CREDENTIALS
+    // Paste your Supabase Project URL and Publishable/Anon Key here:
+    // When filled, the app automatically connects in Live Multi-Device Sync mode!
+    // =========================================================================
+    supabaseUrl: '',      // e.g. 'https://abcdefghijklm.supabase.co'
+    supabaseAnonKey: '',  // e.g. 'sbp_...' or 'eyJhbGci...'
     
-    // Mode: 'DEMO' or 'SUPABASE'
-    mode: localStorage.getItem('eventshield_mode') || 'DEMO',
+    // Mode: 'SUPABASE' (for live cloud sync) or 'DEMO' (for local test)
+    mode: 'SUPABASE',
 
     // App Metadata
     version: '2.5.0',

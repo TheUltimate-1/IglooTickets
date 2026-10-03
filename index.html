@@ -1227,13 +1227,17 @@
             }
         }
 
-        /* =========================================================================
-           3. SUPABASE CLIENT & LIVE REALTIME SYNC
-           ========================================================================= */
         async function initSupabaseClient() {
-            const url = APP_CONFIG.supabaseUrl || localStorage.getItem('eventshield_sb_url');
-            const key = APP_CONFIG.supabaseAnonKey || localStorage.getItem('eventshield_sb_key');
-            const mode = localStorage.getItem('eventshield_mode') || 'DEMO';
+            const url = (APP_CONFIG.supabaseUrl && APP_CONFIG.supabaseUrl.trim()) || localStorage.getItem('eventshield_sb_url');
+            const key = (APP_CONFIG.supabaseAnonKey && APP_CONFIG.supabaseAnonKey.trim()) || localStorage.getItem('eventshield_sb_key');
+            
+            // If URL & Key are hardcoded in config.js, automatically default to SUPABASE mode
+            let mode = localStorage.getItem('eventshield_mode');
+            if (!mode) {
+                mode = (url && key) ? (APP_CONFIG.mode || 'SUPABASE') : 'DEMO';
+            } else if (APP_CONFIG.supabaseUrl && APP_CONFIG.supabaseAnonKey && mode !== 'DEMO') {
+                mode = 'SUPABASE';
+            }
 
             if (mode === 'SUPABASE' && url && key && window.supabase) {
                 try {

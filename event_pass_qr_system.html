@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Pass - Anti-Duplicate QR Ticket System</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- QRCode.js for generating QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- jsQR for decoding QR codes from image data -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(31, 41, 55, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Pulse animations for status indicators */
+        @keyframes pulse-red {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        .animate-pulse-red {
+            animation: pulse-red 1.5s infinite ease-in-out;
+        }
+
+        /* Scan line animation for camera viewfinder */
+        @keyframes scan-line {
+            0% { top: 0%; }
+            50% { top: 95%; }
+            100% { top: 0%; }
+        }
+        .scan-laser {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #22c55e, transparent);
+            box-shadow: 0 0 12px #22c55e;
+            animation: scan-line 2.5s infinite ease-in-out;
+        }
+    .scan-hit { border-color: #22c55e !important; box-shadow: 0 0 0 4px rgba(34,197,94,.35); transition: all .15s; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Navbar -->
+    <header class="glass-panel sticky top-0 z-40 border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand -->
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+                        <i class="fa-solid fa-qrcode text-xl"></i>
+                    </div>
+                    <div>
+                        <span class="text-lg font-bold bg-gradient-to-r from-white via-gray-200 to-indigo-400 bg-clip-text text-transparent">EventShield QR</span>
+                        <span class="text-xs px-2 py-0.5 ml-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-medium">Single-Use Security</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex space-x-1 sm:space-x-2">
+                    <button onclick="switchTab('scanner')" id="tab-scanner" class="tab-btn px-3 py-2 sm:px-4 sm:py-2 text-sm font-medium rounded-lg transition-all flex items-center space-x-2 bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
+                        <i class="fa-solid fa-expand"></i>
+                        <span class="hidden sm:inline">Scanner</span>
+                    </button>
+                    <button onclick="switchTab('generator')" id="tab-generator" class="tab-btn px-3 py-2 sm:px-4 sm:py-2 text-sm font-medium rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-ticket"></i>
+                        <span class="hidden sm:inline">Manage Passes</span>
+                    </button>
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn px-3 py-2 sm:px-4 sm:py-2 text-sm font-medium rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span class="hidden sm:inline">Analytics</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- ========================================================================= -->
+        <!-- TAB 1: SCANNER & ENTRY CHECK -->
+        <!-- ========================================================================= -->
+        <section id="view-scanner" class="tab-view space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Column: Camera Viewfinder & File Upload -->
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="glass-panel p-5 rounded-2xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-camera text-indigo-400"></i> Gateway Scanner
+                            </h2>
+                            <div class="flex items-center space-x-2">
+                                <span id="camera-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                                <span id="camera-status-text" class="text-xs text-gray-400 font-medium">Camera Ready</span>
+                            </div>
+                        </div>
+
+                        <!-- Video Scanner Feed Box -->
+                        <div class="relative aspect-video bg-black/80 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center">
+                            <video id="webcam-video" class="w-full h-full object-cover hidden" playsinline></video>
+                            <canvas id="qr-canvas" class="hidden"></canvas>
+                            
+                            <!-- Scanner Overlay Graphics -->
+                            <div id="viewfinder-overlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <div id="scan-frame" class="w-48 h-48 sm:w-56 sm:h-56 border-2 border-indigo-500/50 rounded-2xl relative">
+                                    <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl"></div>
+                                    <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr"></div>
+                                    <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl"></div>
+                                    <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br"></div>
+                                    
+                                    <div id="laser-line" class="scan-laser hidden"></div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-4 bg-gray-900/80 px-3 py-1 rounded-full backdrop-blur-md">
+                                    Align QR Token within frame
+                                </p>
+                            </div>
+
+                            <!-- Start Video Overlay Button -->
+                            <div id="camera-start-overlay" class="absolute inset-0 bg-gray-950/90 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                                <div class="p-4 bg-indigo-600/10 rounded-full border border-indigo-500/20 text-indigo-400">
+                                    <i class="fa-solid fa-video text-3xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-medium text-white">Camera Access Inactive</h3>
+                                    <p class="text-xs text-gray-400 mt-1 max-w-xs">Use real live webcam, upload QR image file, or click instant test scan below.</p>
+                                </div>
+                                <button onclick="startCamera()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-indigo-600/30 flex items-center gap-2">
+                                    <i class="fa-solid fa-power-off"></i> Start Live Camera
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Control buttons & File upload -->
+                        <div class="mt-4 flex flex-wrap gap-3 items-center justify-between">
+                            <div class="flex space-x-2">
+                                <button id="stop-cam-btn" onclick="stopCamera()" class="hidden px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-medium transition-all">
+                                    <i class="fa-solid fa-stop mr-1"></i> Stop Camera
+                                </button>
+                                <label class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-xs font-medium cursor-pointer transition-all border border-gray-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-upload text-indigo-400"></i> Upload QR Image
+                                    <input type="file" id="qr-file-input" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                                </label>
+                            </div>
+
+                            <span class="text-xs text-gray-500">
+                                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Non-duplicatable validation
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Quick Testing Buttons Bar -->
+                    <div class="glass-panel p-4 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Quick Simulation Scanners</span>
+                            <span class="text-xs text-indigo-400">Click to test instantly</span>
+                        </div>
+                        <div id="quick-test-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <!-- Populated dynamically via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Verification Result Panel -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div id="result-card" class="glass-panel p-6 rounded-2xl flex flex-col justify-between h-full min-h-[420px] transition-all border-2 border-gray-800">
+                        
+                        <!-- Header Status -->
+                        <div>
+                            <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+                                <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Validation Status</span>
+                                <span id="status-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-800 text-gray-400 border border-gray-700">
+                                    Awaiting Scan
+                                </span>
+                            </div>
+
+                            <!-- Main Dynamic Feedback Visual -->
+                            <div id="result-body" class="py-12 flex flex-col items-center justify-center text-center space-y-4">
+                                <div id="result-icon-bg" class="w-20 h-20 rounded-full bg-gray-800/80 border border-gray-700 flex items-center justify-center text-gray-500 transition-all">
+                                    <i id="result-icon" class="fa-solid fa-barcode text-3xl"></i>
+                                </div>
+                                <div class="space-y-1">
+                                    <h3 id="result-title" class="text-xl font-bold text-white">Ready for Check-In</h3>
+                                    <p id="result-subtitle" class="text-sm text-gray-400 max-w-xs">Scan a ticket QR code using the camera, file upload, or quick test button.</p>
+                                </div>
+                            </div>
+
+                            <!-- Detailed Verification Info Card -->
+                            <div id="result-details" class="hidden glass-card p-4 rounded-xl space-y-3 text-xs">
+                                <div class="flex justify-between items-center text-gray-400 pb-2 border-b border-gray-800">
+                                    <span>Attendee Name:</span>
+                                    <span id="detail-name" class="font-bold text-white text-sm">--</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-400 pb-2 border-b border-gray-800">
+                                    <span>Token ID:</span>
+                                    <span id="detail-token" class="font-mono text-indigo-300">--</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-400 pb-2 border-b border-gray-800">
+                                    <span>Original Issue Date:</span>
+                                    <span id="detail-issued" class="text-gray-300">--</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-400">
+                                    <span id="detail-scan-label">Check-In Time:</span>
+                                    <span id="detail-scanned-at" class="font-bold text-emerald-400">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer Safeguard Note -->
+                        <div class="pt-4 border-t border-gray-800 text-center">
+                            <p class="text-[11px] text-gray-500">
+                                <i class="fa-solid fa-lock text-gray-400 mr-1"></i>
+                                Standard photo copies or duplicate prints are rejected automatically once marked as CHECKED_IN.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 2: PASS ISSUANCE & REGISTRY MANAGEMENT -->
+        <!-- ========================================================================= -->
+        <section id="view-generator" class="tab-view space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Form: Dynamic Name Assign & Token Creator -->
+                <div class="lg:col-span-5 glass-panel p-6 rounded-2xl space-y-5">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus text-indigo-400"></i> Issue New Secure Ticket
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">
+                            Generate a unique, non-duplicatable QR cryptographic token assigned to any attendee name.
+                        </p>
+                    </div>
+
+                    <form id="issue-form" onsubmit="handleIssueTicket(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                                Attendee Name / Identifier
+                            </label>
+                            <input type="text" id="attendee-name-input" required placeholder="e.g. Sarah Connor, VIP-102"
+                                class="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                                Ticket Tier / Access Level
+                            </label>
+                            <select id="ticket-tier-input" class="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-indigo-500 text-sm">
+                                <option value="VIP General Access">VIP General Access</option>
+                                <option value="Standard Pass">Standard Pass</option>
+                                <option value="Speaker / Backstage">Speaker / Backstage Pass</option>
+                                <option value="Press / Media">Press / Media Pass</option>
+                            </select>
+                        </div>
+
+                        <div class="p-3 bg-indigo-950/40 border border-indigo-800/40 rounded-xl">
+                            <div class="flex items-start space-x-2 text-xs text-indigo-300">
+                                <i class="fa-solid fa-shield text-indigo-400 mt-0.5"></i>
+                                <span>A unique 128-bit UUID cryptographic token will be embedded into this QR pass automatically.</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-qrcode"></i> Generate Secure Ticket
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Right Column: Ticket Preview & Issued Ticket Repository -->
+                <div class="lg:col-span-7 space-y-6">
+                    <!-- Generated Ticket Card Preview -->
+                    <div id="ticket-preview-box" class="glass-panel p-6 rounded-2xl hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                                <i class="fa-solid fa-check-circle"></i> Ticket Generated Successfully
+                            </span>
+                            <div class="flex items-center gap-3"><button onclick="hideTicketPreview()" class="text-gray-400 hover:text-white text-xs">
+                                <i class="fa-solid fa-times"></i> Close
+                            </button>
+                            <button onclick="downloadTicketPdf(document.getElementById('preview-token').textContent)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i> Download PDF</button></div>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-indigo-950 via-gray-900 to-black p-6 rounded-xl border border-indigo-500/30 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6">
+                            <div class="space-y-3 z-10 text-center sm:text-left">
+                                <span id="preview-tier" class="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-xs font-semibold">
+                                    VIP General Access
+                                </span>
+                                <h3 id="preview-name" class="text-2xl font-bold text-white">Attendee Name</h3>
+                                <div class="text-xs text-gray-400 space-y-1">
+                                    <p>Token UUID: <span id="preview-token" class="font-mono text-indigo-400">--</span></p>
+                                    <p>Status: <span class="text-emerald-400 font-semibold">VALID (Unscanned)</span></p>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-3 rounded-xl shadow-2xl flex flex-col items-center justify-center z-10">
+                                <div id="qrcode-container"></div>
+                                <span class="text-[9px] text-gray-500 mt-1 font-mono">SCAN TO VERIFY</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Issued Tickets Registry Table -->
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-list-check text-indigo-400"></i> Active Issued Tickets
+                                </h3>
+                                <p class="text-xs text-gray-400 mt-0.5">Manage, view, scan, or revoke individual attendee tickets.</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span id="issued-count-badge" class="text-xs px-2.5 py-1 bg-gray-800 text-gray-300 rounded-full border border-gray-700">
+                                    0 Issued
+                                </span>
+                                <button onclick="confirmResetDatabase()" class="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5" title="Remove all issued passes">
+                                    <i class="fa-solid fa-trash-can"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Ticket Search -->
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-3 text-gray-500 text-xs"></i>
+                            <input type="text" id="generator-search" oninput="renderIssuedTicketsTable()" placeholder="Search attendee name or token..."
+                                class="w-full pl-9 pr-4 py-2 bg-gray-900/60 border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                        </div>
+
+                        <!-- Registry Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-gray-900/80 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800">
+                                    <tr>
+                                        <th class="py-3 px-3">Attendee Name</th>
+                                        <th class="py-3 px-3">Token UUID</th>
+                                        <th class="py-3 px-3">Status</th>
+                                        <th class="py-3 px-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="issued-tickets-tbody" class="divide-y divide-gray-800/60 text-gray-300">
+                                    <!-- Populated dynamically via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 3: REAL-TIME ANALYTICS & SECURITY AUDIT DASHBOARD -->
+        <!-- ========================================================================= -->
+        <section id="view-dashboard" class="tab-view space-y-6 hidden">
+            <!-- Stats Metric Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Total Passes Issued</p>
+                        <h4 id="stat-total" class="text-2xl font-bold text-white mt-1">0</h4>
+                    </div>
+                    <div class="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+                        <i class="fa-solid fa-ticket text-xl"></i>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Checked-In Attendees</p>
+                        <h4 id="stat-checked-in" class="text-2xl font-bold text-emerald-400 mt-1">0</h4>
+                    </div>
+                    <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                        <i class="fa-solid fa-user-check text-xl"></i>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Pending Entry</p>
+                        <h4 id="stat-unscanned" class="text-2xl font-bold text-amber-400 mt-1">0</h4>
+                    </div>
+                    <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                        <i class="fa-solid fa-clock text-xl"></i>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Duplicate Scan Rejections</p>
+                        <h4 id="stat-duplicates" class="text-2xl font-bold text-red-400 mt-1">0</h4>
+                    </div>
+                    <div class="p-3 bg-red-500/10 text-red-400 rounded-xl border border-red-500/20">
+                        <i class="fa-solid fa-shield-cat text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Audit Activity Log -->
+            <div class="glass-panel p-6 rounded-2xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Audit Log & Verification Attempts
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Real-time log of valid entries, rejected scans, and administrative deletions.</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="exportAuditLogs()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-medium border border-gray-700 flex items-center gap-1.5 transition-all">
+                            <i class="fa-solid fa-download"></i> Export Log
+                        </button>
+                        <button onclick="clearAuditLogs()" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs font-medium border border-red-500/20 transition-all">
+                            Clear Log
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Audit Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-900/80 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800">
+                            <tr>
+                                <th class="py-3 px-3">Timestamp</th>
+                                <th class="py-3 px-3">Attendee Name</th>
+                                <th class="py-3 px-3">Token UUID</th>
+                                <th class="py-3 px-3">Scan Result</th>
+                                <th class="py-3 px-3">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-log-tbody" class="divide-y divide-gray-800/60 text-gray-300">
+                            <!-- Populated via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] hidden max-w-sm w-[90%] px-4 py-2.5 rounded-xl text-xs text-center border backdrop-blur-md"></div>
+
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-gray-800 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>EventShield QR Core &copy; Single-Scan Verification Engine</span>
+            <span class="flex items-center gap-1 text-emerald-400">
+                <i class="fa-solid fa-circle text-[8px]"></i> System Operational
+            </span>
+        </div>
+    </footer>
+
+    <!-- Ticket QR Modal View -->
+    <div id="qr-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-sm w-full p-6 rounded-2xl space-y-4 text-center border border-gray-700 relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-lg"></i>
+            </button>
+            <h3 id="modal-title" class="text-lg font-bold text-white">Attendee Ticket</h3>
+            
+            <div class="bg-white p-4 rounded-xl inline-block mx-auto shadow-xl">
+                <div id="modal-qrcode"></div>
+            </div>
+
+            <div class="text-xs text-gray-400 space-y-1">
+                <p>Attendee: <span id="modal-name" class="font-semibold text-white">--</span></p>
+                <p class="font-mono text-indigo-300 break-all" id="modal-token">--</p>
+            </div>
+
+            <div class="pt-2 flex justify-center gap-2">
+                <button onclick="triggerModalScan()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-indigo-600/30">
+                    <i class="fa-solid fa-bolt"></i> Test Scan This Ticket
+                </button>
+                <button onclick="downloadTicketPdf(activeModalToken)" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-gray-700"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Confirmation Dialog Modal (Replaces unsafe alert/confirm) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-red-500/30 relative">
+            <div class="flex items-center space-x-3 text-red-400">
+                <div class="p-3 bg-red-500/10 rounded-full border border-red-500/20 text-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 id="confirm-modal-title" class="text-base font-bold text-white">Confirm Removal</h3>
+                    <p id="confirm-modal-subtitle" class="text-xs text-gray-400">This action cannot be undone.</p>
+                </div>
+            </div>
+
+            <p id="confirm-modal-message" class="text-xs text-gray-300 bg-gray-900/80 p-3 rounded-xl border border-gray-800">
+                Are you sure you want to delete this ticket?
+            </p>
+
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-medium border border-gray-700 transition-all">
+                    Cancel
+                </button>
+                <button id="confirm-modal-action-btn" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-red-600/30 transition-all">
+                    Remove
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================================================
+           STATE MANAGEMENT & LOCAL STORAGE PERSISTENCE
+           ========================================================================= */
+        
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        const INITIAL_SEED_TICKETS = [
+            {
+                id: '1',
+                token: 'ed321a4f-8891-49b2-a42e-111111111111',
+                name: 'Alex Johnson',
+                tier: 'VIP General Access',
+                status: 'VALID',
+                issuedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+                scannedAt: null,
+                scannedBy: null
+            },
+            {
+                id: '2',
+                token: 'b83d99fa-71a2-4a02-b21a-222222222222',
+                name: 'Elena Rostova',
+                tier: 'Speaker / Backstage',
+                status: 'VALID',
+                issuedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+                scannedAt: null,
+                scannedBy: null
+            },
+            {
+                id: '3',
+                token: 'c52e88bb-12a1-4209-a111-333333333333',
+                name: 'Marcus Vance',
+                tier: 'Standard Pass',
+                status: 'VALID',
+                issuedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
+                scannedAt: null,
+                scannedBy: null
+            }
+        ];
+
+        let ticketsDatabase = loadTicketsFromStorage();
+        let auditLogs = loadAuditLogsFromStorage();
+        let duplicateAttemptsCount = parseInt(localStorage.getItem('eventshield_dup_count') || '0', 10);
+        
+        let videoStream = null;
+        let animationFrameId = null;
+        let activeModalToken = null;
+
+        function loadTicketsFromStorage() {
+            try {
+                const stored = localStorage.getItem('eventshield_tickets');
+                return stored ? JSON.parse(stored) : INITIAL_SEED_TICKETS;
+            } catch (e) {
+                return INITIAL_SEED_TICKETS;
+            }
+        }
+
+        function saveTicketsToStorage() {
+            try {
+                localStorage.setItem('eventshield_tickets', JSON.stringify(ticketsDatabase));
+            } catch (e) {
+                console.error("LocalStorage save error:", e);
+            }
+        }
+
+        function loadAuditLogsFromStorage() {
+            try {
+                const stored = localStorage.getItem('eventshield_audit_logs');
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveAuditLogsToStorage() {
+            try {
+                localStorage.setItem('eventshield_audit_logs', JSON.stringify(auditLogs));
+                localStorage.setItem('eventshield_dup_count', duplicateAttemptsCount.toString());
+            } catch (e) {
+                console.error("LocalStorage audit save error:", e);
+            }
+        }
+
+        /* =========================================================================
+           AUDIO SYNTHESIZER FOR SCAN FEEDBACK
+           ========================================================================= */
+        function playAudioFeedback(type) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'success') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.3);
+                } else {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, ctx.currentTime);
+                    osc.frequency.setValueAtTime(110, ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.4);
+                }
+            } catch (e) {
+                console.log("Audio feedback suppressed:", e);
+            }
+        }
+
+        /* =========================================================================
+           NAVIGATION & TAB SWITCHING
+           ========================================================================= */
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-view').forEach(view => view.classList.add('hidden'));
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn px-3 py-2 sm:px-4 sm:py-2 text-sm font-medium rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-all flex items-center space-x-2";
+            });
+
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+            
+            const activeBtn = document.getElementById(`tab-${tabName}`);
+            activeBtn.className = "tab-btn px-3 py-2 sm:px-4 sm:py-2 text-sm font-medium rounded-lg transition-all flex items-center space-x-2 bg-indigo-600 text-white shadow-lg shadow-indigo-600/30";
+
+            if (tabName !== 'scanner' && videoStream) stopCamera();
+            if (tabName === 'generator') {
+                renderIssuedTicketsTable();
+            } else if (tabName === 'dashboard') {
+                renderDashboard();
+            }
+        }
+
+        /* =========================================================================
+           ATOMIC SCAN & VERIFICATION ENGINE
+           ========================================================================= */
+        function processScannedToken(scannedInput) {
+            if (!scannedInput) return;
+
+            let tokenStr = scannedInput.trim();
+            if (tokenStr.includes('token=')) {
+                tokenStr = tokenStr.split('token=')[1].split('&')[0];
+            }
+
+            const nowISO = new Date().toISOString();
+            const timeFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            const ticket = ticketsDatabase.find(t => t.token.toLowerCase() === tokenStr.toLowerCase());
+
+            if (!ticket) {
+                playAudioFeedback('error');
+                recordAuditLog(tokenStr, 'Unknown', 'REJECTED_INVALID', 'Token does not exist in registry');
+                updateResultCard({
+                    type: 'INVALID',
+                    title: 'Invalid QR Code',
+                    subtitle: 'This token was not issued by the system or was removed.',
+                    badge: 'REJECTED: UNKNOWN',
+                    badgeClass: 'bg-red-500/10 text-red-400 border-red-500/30',
+                    iconClass: 'fa-triangle-exclamation text-red-500',
+                    bgClass: 'border-red-500/50 bg-red-950/20'
+                });
+                return;
+            }
+
+            if (ticket.status === 'CHECKED_IN') {
+                duplicateAttemptsCount++;
+                playAudioFeedback('error');
+                
+                const prevTime = new Date(ticket.scannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                recordAuditLog(ticket.token, ticket.name, 'REJECTED_DUPLICATE', `Already scanned at ${prevTime}`);
+
+                updateResultCard({
+                    type: 'DUPLICATE',
+                    title: 'ENTRY DENIED: Already Scanned!',
+                    subtitle: `WARNING: Duplicate scan attempt! Ticket was already used for entry.`,
+                    badge: 'REJECTED: DUPLICATE',
+                    badgeClass: 'bg-red-500 text-white font-bold animate-pulse-red',
+                    iconClass: 'fa-ban text-red-500',
+                    bgClass: 'border-red-600 bg-red-950/40',
+                    details: {
+                        name: ticket.name,
+                        token: ticket.token,
+                        issued: new Date(ticket.issuedAt).toLocaleTimeString(),
+                        scannedAt: `${prevTime} (FIRST SCAN)`,
+                        scanLabel: 'Original Entry Time:'
+                    }
+                });
+
+                saveAuditLogsToStorage();
+                renderQuickTestButtons();
+                renderDashboard();
+                return;
+            }
+
+            ticket.status = 'CHECKED_IN';
+            ticket.scannedAt = nowISO;
+            ticket.scannedBy = 'Gate 1 (Main Entrance)';
+
+            saveTicketsToStorage();
+            playAudioFeedback('success');
+            recordAuditLog(ticket.token, ticket.name, 'SUCCESS_CHECKIN', 'First scan approved for entry');
+
+            updateResultCard({
+                type: 'SUCCESS',
+                title: `Welcome, ${ticket.name}!`,
+                subtitle: 'Pass verified successfully. Access Granted.',
+                badge: 'CHECK-IN APPROVED',
+                badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-bold',
+                iconClass: 'fa-circle-check text-emerald-400',
+                bgClass: 'border-emerald-500/50 bg-emerald-950/20',
+                details: {
+                    name: ticket.name,
+                    token: ticket.token,
+                    issued: new Date(ticket.issuedAt).toLocaleTimeString(),
+                    scannedAt: timeFormatted,
+                    scanLabel: 'Scanned At:'
+                }
+            });
+
+            renderQuickTestButtons();
+            renderDashboard();
+        }
+
+        function updateResultCard(config) {
+            const resultCard = document.getElementById('result-card');
+            const statusBadge = document.getElementById('status-badge');
+            const resultTitle = document.getElementById('result-title');
+            const resultSubtitle = document.getElementById('result-subtitle');
+            const resultIcon = document.getElementById('result-icon');
+            const resultDetails = document.getElementById('result-details');
+
+            statusBadge.className = `px-3 py-1 text-xs rounded-full border ${config.badgeClass}`;
+            statusBadge.textContent = config.badge;
+
+            resultCard.className = `glass-panel p-6 rounded-2xl flex flex-col justify-between h-full min-h-[420px] transition-all border-2 ${config.bgClass}`;
+            resultIcon.className = `fa-solid ${config.iconClass} text-3xl`;
+
+            resultTitle.textContent = config.title;
+            resultSubtitle.textContent = config.subtitle;
+
+            if (config.details) {
+                resultDetails.classList.remove('hidden');
+                document.getElementById('detail-name').textContent = config.details.name;
+                document.getElementById('detail-token').textContent = config.details.token;
+                document.getElementById('detail-issued').textContent = config.details.issued;
+                document.getElementById('detail-scanned-at').textContent = config.details.scannedAt;
+                document.getElementById('detail-scan-label').textContent = config.details.scanLabel;
+                
+                if (config.type === 'DUPLICATE') {
+                    document.getElementById('detail-scanned-at').className = 'font-bold text-red-400';
+                } else {
+                    document.getElementById('detail-scanned-at').className = 'font-bold text-emerald-400';
+                }
+            } else {
+                resultDetails.classList.add('hidden');
+            }
+        }
+
+        /* =========================================================================
+           TICKET DELETION & DATABASE CLEARING CAPABILITIES
+           ========================================================================= */
+        function removeTicket(tokenStr) {
+            const ticketIndex = ticketsDatabase.findIndex(t => t.token === tokenStr);
+            if (ticketIndex === -1) return;
+
+            const ticket = ticketsDatabase[ticketIndex];
+            
+            showConfirmModal(
+                `Remove Ticket for "${ticket.name}"?`,
+                `Are you sure you want to permanently delete ticket token (${ticket.token.substring(0, 13)}...)? This cannot be undone.`,
+                () => {
+                    // Remove from database
+                    ticketsDatabase.splice(ticketIndex, 1);
+                    saveTicketsToStorage();
+
+                    // Log event in audit history
+                    recordAuditLog(ticket.token, ticket.name, 'TICKET_REMOVED', `Ticket manually deleted from registry`);
+
+                    // Hide preview if deleted ticket was open
+                    const previewToken = document.getElementById('preview-token')?.textContent;
+                    if (previewToken === ticket.token) {
+                        hideTicketPreview();
+                    }
+
+                    // Update UI
+                    renderIssuedTicketsTable();
+                    renderQuickTestButtons();
+                    renderDashboard();
+                    closeConfirmModal();
+                }
+            );
+        }
+
+        function confirmResetDatabase() {
+            if (ticketsDatabase.length === 0) {
+                return;
+            }
+
+            showConfirmModal(
+                "Clear ALL Issued Passes?",
+                `WARNING: You are about to permanently delete all ${ticketsDatabase.length} ticket records from the event database! All QR codes currently held by attendees will become invalid immediately.`,
+                () => {
+                    const count = ticketsDatabase.length;
+                    ticketsDatabase = [];
+                    saveTicketsToStorage();
+
+                    // Log global reset in audit history
+                    recordAuditLog('GLOBAL_RESET', 'System Admin', 'REGISTRY_CLEARED', `All ${count} tickets removed from database`);
+
+                    hideTicketPreview();
+                    renderIssuedTicketsTable();
+                    renderQuickTestButtons();
+                    renderDashboard();
+                    closeConfirmModal();
+                }
+            );
+        }
+
+        function showConfirmModal(title, message, onConfirmCallback) {
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-message').textContent = message;
+            
+            const actionBtn = document.getElementById('confirm-modal-action-btn');
+            actionBtn.onclick = onConfirmCallback;
+
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        /* =========================================================================
+           QUICK TEST SIMULATION BUTTONS
+           ========================================================================= */
+        function renderQuickTestButtons() {
+            const container = document.getElementById('quick-test-list');
+            container.innerHTML = '';
+
+            if (ticketsDatabase.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center py-4 text-xs text-gray-500">No tickets in registry. Issue a pass to begin scanning.</div>`;
+                return;
+            }
+
+            ticketsDatabase.forEach(ticket => {
+                const isCheckedIn = ticket.status === 'CHECKED_IN';
+                
+                const btn = document.createElement('button');
+                btn.onclick = () => processScannedToken(ticket.token);
+                btn.className = `p-2.5 rounded-xl text-left border transition-all flex items-center justify-between ${
+                    isCheckedIn 
+                        ? 'bg-red-500/10 border-red-500/20 text-gray-300 hover:bg-red-500/20' 
+                        : 'bg-gray-800/80 border-gray-700 text-white hover:bg-indigo-600/20 hover:border-indigo-500'
+                }`;
+
+                btn.innerHTML = `
+                    <div class="truncate mr-2">
+                        <div class="font-semibold text-xs truncate">${ticket.name}</div>
+                        <div class="text-[10px] text-gray-400 font-mono truncate">${ticket.token.substring(0, 13)}...</div>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded font-medium whitespace-nowrap ${
+                        isCheckedIn ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-300'
+                    }">
+                        ${isCheckedIn ? 'Scan Again (Dup Test)' : 'Simulate Scan'}
+                    </span>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        /* =========================================================================
+           WEBCAM SCANNER & FILE DECODER (BarcodeDetector + jsQR fallback)
+           ========================================================================= */
+        const scanner = { running: false, busy: false, lastTick: 0, frame: 0, lastValue: null, lastSeenAt: 0,
+                          detector: null, ctx: null };
+        try { if ('BarcodeDetector' in window) scanner.detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
+
+        function notify(msg, kind = 'error', ms = 5000) {
+            const el = document.getElementById('toast');
+            const c = { error: 'bg-red-950/90 text-red-200 border-red-500/40', ok: 'bg-emerald-950/90 text-emerald-200 border-emerald-500/40' };
+            el.className = `fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] max-w-sm w-[90%] px-4 py-2.5 rounded-xl text-xs text-center border backdrop-blur-md ${c[kind] || c.error}`;
+            el.textContent = msg;
+            clearTimeout(notify.t);
+            notify.t = setTimeout(() => el.classList.add('hidden'), ms);
+        }
+
+        function setCamStatus(color, text) {
+            document.getElementById('camera-status-dot').className = `w-2.5 h-2.5 rounded-full bg-${color}-500 ${color === 'emerald' ? 'animate-pulse' : ''}`;
+            document.getElementById('camera-status-text').textContent = text;
+        }
+
+        async function startCamera() {
+            if (scanner.running) return;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                notify(window.isSecureContext ? 'This browser has no camera support. Use Upload QR Image.'
+                    : 'Camera needs https or localhost. Host this page securely, or use Upload QR Image.', 'error', 8000);
+                return;
+            }
+            setCamStatus('amber', 'Starting camera...');
+            let stream = null, lastErr = null;
+            const attempts = [
+                { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                { video: true, audio: false }
+            ];
+            for (const c of attempts) {
+                try { stream = await navigator.mediaDevices.getUserMedia(c); break; }
+                catch (err) { lastErr = err; if (err.name === 'NotAllowedError' || err.name === 'SecurityError') break; }
+            }
+            if (!stream) {
+                const msgs = { NotAllowedError: 'Camera permission denied. Allow camera access in browser settings and retry.',
+                               SecurityError: 'Camera permission denied. Allow camera access in browser settings and retry.',
+                               NotFoundError: 'No camera found on this device.',
+                               NotReadableError: 'Camera is being used by another app. Close it and retry.' };
+                notify(msgs[lastErr && lastErr.name] || 'Could not start the camera. Use Upload QR Image instead.', 'error', 8000);
+                setCamStatus('amber', 'Camera Ready');
+                return;
+            }
+
+            // Ask for continuous autofocus where supported: the biggest win for sharp QR reads
+            try {
+                const track = stream.getVideoTracks()[0];
+                const caps = track.getCapabilities ? track.getCapabilities() : {};
+                if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                    await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+                }
+            } catch (e) {}
+
+            const video = document.getElementById('webcam-video');
+            videoStream = stream;
+            video.srcObject = stream;
+            video.classList.remove('hidden');
+            document.getElementById('camera-start-overlay').classList.add('hidden');
+            document.getElementById('laser-line').classList.remove('hidden');
+            document.getElementById('stop-cam-btn').classList.remove('hidden');
+            setCamStatus('emerald', 'Scanning Live...');
+            try { await video.play(); } catch (e) {}
+
+            scanner.running = true;
+            scanner.lastValue = null;
+            animationFrameId = requestAnimationFrame(tickScan);
+        }
+
+        function stopCamera() {
+            scanner.running = false;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+            const video = document.getElementById('webcam-video');
+            video.srcObject = null;
+            video.classList.add('hidden');
+            document.getElementById('camera-start-overlay').classList.remove('hidden');
+            document.getElementById('laser-line').classList.add('hidden');
+            document.getElementById('stop-cam-btn').classList.add('hidden');
+            setCamStatus('amber', 'Camera Ready');
+        }
+
+        // Decode one video frame: native detector first, then jsQR on a centre crop / full frame
+        async function decodeVideoFrame(video) {
+            if (scanner.detector) {
+                try {
+                    const codes = await scanner.detector.detect(video);
+                    if (codes.length) return codes[0].rawValue;
+                    return null;
+                } catch (e) { scanner.detector = null; }
+            }
+            const vw = video.videoWidth, vh = video.videoHeight;
+            let sx = 0, sy = 0, sw = vw, sh = vh;
+            if (++scanner.frame % 3 !== 0) { // 2 of 3 ticks: centre crop matching the on-screen frame (faster, larger modules)
+                const side = Math.floor(Math.min(vw, vh) * 0.8);
+                sx = (vw - side) >> 1; sy = (vh - side) >> 1; sw = sh = side;
+            }
+            const tw = Math.min(sw, 720), th = Math.round(sh * tw / sw);
+            const canvas = document.getElementById('qr-canvas');
+            if (!scanner.ctx) scanner.ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (canvas.width !== tw || canvas.height !== th) { canvas.width = tw; canvas.height = th; }
+            scanner.ctx.drawImage(video, sx, sy, sw, sh, 0, 0, tw, th);
+            const img = scanner.ctx.getImageData(0, 0, tw, th);
+            const code = jsQR(img.data, tw, th, { inversionAttempts: 'attemptBoth' });
+            return code ? code.data : null;
+        }
+
+        async function tickScan(ts) {
+            if (!scanner.running) return;
+            animationFrameId = requestAnimationFrame(tickScan);
+            const video = document.getElementById('webcam-video');
+            if (scanner.busy || ts - scanner.lastTick < 90 || video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) return;
+            scanner.lastTick = ts;
+            scanner.busy = true;
+            try {
+                const value = await decodeVideoFrame(video);
+                if (value && scanner.running) handleDetection(value);
+            } catch (e) { console.error('Scan error:', e); }
+            finally { scanner.busy = false; }
+        }
+
+        // A code held steadily in view is processed once; it re-triggers only after leaving view for ~2.5s
+        function handleDetection(value) {
+            const now = performance.now();
+            const repeat = value === scanner.lastValue && now - scanner.lastSeenAt < 2500;
+            scanner.lastSeenAt = now;
+            if (repeat) return;
+            scanner.lastValue = value;
+            const frame = document.getElementById('scan-frame');
+            frame.classList.add('scan-hit');
+            setTimeout(() => frame.classList.remove('scan-hit'), 600);
+            if (navigator.vibrate) navigator.vibrate(60);
+            processScannedToken(value);
+        }
+
+        async function decodeImage(img) {
+            if (scanner.detector) {
+                try { const c = await scanner.detector.detect(img); if (c.length) return c[0].rawValue; } catch (e) {}
+            }
+            const longest = Math.max(img.naturalWidth, img.naturalHeight);
+            for (const maxSide of [1600, 900, 500]) { // several scales: helps with huge or noisy images
+                const k = Math.min(1, maxSide / longest);
+                const w = Math.round(img.naturalWidth * k), h = Math.round(img.naturalHeight * k);
+                const c = document.createElement('canvas'); c.width = w; c.height = h;
+                const ctx = c.getContext('2d', { willReadFrequently: true });
+                ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); // transparent PNGs otherwise decode as black
+                ctx.drawImage(img, 0, 0, w, h);
+                const d = ctx.getImageData(0, 0, w, h);
+                const code = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' });
+                if (code) return code.data;
+            }
+            return null;
+        }
+
+        function handleFileUpload(event) {
+            const input = event.target, file = input.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = async () => {
+                URL.revokeObjectURL(url);
+                const value = await decodeImage(img);
+                input.value = '';
+                if (value) processScannedToken(value);
+                else notify('No QR code could be read. Try a sharper, closer image.');
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); input.value = ''; notify('That file could not be opened as an image.'); };
+            img.src = url;
+        }
+
+        /* =========================================================================
+           PDF TICKET EXPORT (ticket is drawn on a canvas, so any language/script in names renders)
+           ========================================================================= */
+        function makeQrCanvas(text, px) {
+            const holder = document.createElement('div');
+            holder.style.cssText = 'position:fixed;left:-9999px;top:0;';
+            document.body.appendChild(holder);
+            new QRCode(holder, { text, width: px, height: px, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+            const canvas = holder.querySelector('canvas');
+            document.body.removeChild(holder);
+            return canvas;
+        }
+
+        function fitText(ctx, text, maxW, size, min, weight) {
+            for (; size > min; size -= 2) { ctx.font = `${weight} ${size}px Inter, sans-serif`; if (ctx.measureText(text).width <= maxW) return text; }
+            ctx.font = `${weight} ${min}px Inter, sans-serif`;
+            while (text.length > 1 && ctx.measureText(text + '…').width > maxW) text = text.slice(0, -1);
+            return text + '…';
+        }
+
+        async function buildTicketCanvas(t) {
+            try { await document.fonts.ready; } catch (e) {}
+            const W = 1600, H = 720, SPLIT = 1030;
+            const c = document.createElement('canvas'); c.width = W; c.height = H;
+            const x = c.getContext('2d');
+            x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+            x.fillStyle = '#f1f2fb'; x.fillRect(SPLIT, 0, W - SPLIT, H);
+            x.fillStyle = '#4338ca'; x.fillRect(0, 0, SPLIT, 150);
+            x.textBaseline = 'alphabetic';
+            x.fillStyle = '#fff'; x.font = '800 46px Inter, sans-serif'; x.fillText('EventShield QR', 60, 92);
+            x.textAlign = 'right'; x.font = '600 26px Inter, sans-serif'; x.fillText('ADMIT ONE', SPLIT - 60, 90);
+            x.textAlign = 'left';
+            x.fillStyle = '#6b7280'; x.font = '600 24px Inter, sans-serif'; x.fillText('ATTENDEE', 60, 240);
+            x.fillStyle = '#111827'; x.fillText(fitText(x, t.name, SPLIT - 120, 92, 40, 800), 60, 330);
+            x.fillStyle = '#4338ca'; x.fillText(fitText(x, t.tier, SPLIT - 120, 38, 24, 700), 60, 395);
+            x.fillStyle = '#6b7280'; x.font = '600 22px Inter, sans-serif';
+            x.fillText('TICKET ID', 60, 480);
+            x.fillStyle = '#111827'; x.font = '500 30px monospace'; x.fillText(t.token, 60, 520);
+            x.fillStyle = '#6b7280'; x.font = '500 22px Inter, sans-serif';
+            x.fillText('Issued ' + new Date(t.issuedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }), 60, 580);
+            x.fillText('Single-use pass. Copies are rejected at entry once scanned.', 60, 660);
+            // perforation
+            x.strokeStyle = '#c7c9d9'; x.lineWidth = 3; x.setLineDash([12, 12]);
+            x.beginPath(); x.moveTo(SPLIT, 20); x.lineTo(SPLIT, H - 20); x.stroke(); x.setLineDash([]);
+            // QR with generous white quiet zone
+            const box = 460, bx = SPLIT + (W - SPLIT - box) / 2, by = 90;
+            x.fillStyle = '#fff'; x.fillRect(bx, by, box, box);
+            x.strokeStyle = '#e0e2f0'; x.lineWidth = 2; x.strokeRect(bx, by, box, box);
+            x.drawImage(makeQrCanvas(t.token, 600), bx + 30, by + 30, box - 60, box - 60);
+            x.fillStyle = '#4338ca'; x.textAlign = 'center'; x.font = '700 26px Inter, sans-serif';
+            x.fillText('SCAN AT ENTRANCE', bx + box / 2, by + box + 55);
+            return c;
+        }
+
+        async function downloadTicketPdf(token) {
+            const t = ticketsDatabase.find(k => k.token === token);
+            if (!t) return;
+            if (!window.jspdf) { notify('PDF library failed to load. Check your internet connection and retry.'); return; }
+            try {
+                const canvas = await buildTicketCanvas(t);
+                const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: [200, 90] });
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 200, 90);
+                pdf.setProperties({ title: 'Ticket - ' + t.name });
+                const safe = t.name.replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 40) || 'ticket';
+                pdf.save(`Ticket_${safe}.pdf`);
+                notify('Ticket PDF downloaded', 'ok', 2500);
+            } catch (e) { console.error(e); notify('Could not create the PDF.'); }
+        }
+
+        /* =========================================================================
+           QR TICKET GENERATION & REGISTRY MANAGEMENT
+           ========================================================================= */
+        function handleIssueTicket(event) {
+            event.preventDefault();
+            const nameInput = document.getElementById('attendee-name-input');
+            const tierInput = document.getElementById('ticket-tier-input');
+
+            const newTicket = {
+                id: Date.now().toString(),
+                token: generateUUID(),
+                name: nameInput.value.trim(),
+                tier: tierInput.value,
+                status: 'VALID',
+                issuedAt: new Date().toISOString(),
+                scannedAt: null,
+                scannedBy: null
+            };
+
+            ticketsDatabase.unshift(newTicket);
+            saveTicketsToStorage();
+
+            recordAuditLog(newTicket.token, newTicket.name, 'TICKET_ISSUED', `New ticket created (${newTicket.tier})`);
+
+            nameInput.value = '';
+
+            showTicketPreview(newTicket);
+            renderIssuedTicketsTable();
+            renderQuickTestButtons();
+            renderDashboard();
+        }
+
+        function showTicketPreview(ticket) {
+            const box = document.getElementById('ticket-preview-box');
+            document.getElementById('preview-name').textContent = ticket.name;
+            document.getElementById('preview-tier').textContent = ticket.tier;
+            document.getElementById('preview-token').textContent = ticket.token;
+
+            const qrContainer = document.getElementById('qrcode-container');
+            qrContainer.innerHTML = '';
+            
+            new QRCode(qrContainer, {
+                text: ticket.token,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            box.classList.remove('hidden');
+        }
+
+        function hideTicketPreview() {
+            document.getElementById('ticket-preview-box').classList.add('hidden');
+        }
+
+        function renderIssuedTicketsTable() {
+            const tbody = document.getElementById('issued-tickets-tbody');
+            const searchVal = (document.getElementById('generator-search')?.value || '').toLowerCase();
+            tbody.innerHTML = '';
+
+            const filtered = ticketsDatabase.filter(t => 
+                t.name.toLowerCase().includes(searchVal) || t.token.toLowerCase().includes(searchVal)
+            );
+
+            document.getElementById('issued-count-badge').textContent = `${ticketsDatabase.length} Issued`;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-gray-500">No tickets found in registry</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(ticket => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-800/40 transition-colors";
+                
+                const isCheckedIn = ticket.status === 'CHECKED_IN';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 font-semibold text-white">
+                        ${ticket.name}
+                        <div class="text-[10px] text-gray-500 font-normal">${ticket.tier}</div>
+                    </td>
+                    <td class="py-3 px-3 font-mono text-indigo-300 text-[11px]">
+                        ${ticket.token.substring(0, 18)}...
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${
+                            isCheckedIn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        }">
+                            ${isCheckedIn ? 'CHECKED_IN' : 'VALID'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 text-right space-x-1.5">
+                        <button onclick="openQrModal('${ticket.token}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-indigo-300 rounded text-[11px] border border-gray-700" title="View QR Code">
+                            <i class="fa-solid fa-qrcode mr-1"></i> QR
+                        </button>
+                        <button onclick="downloadTicketPdf('${ticket.token}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-emerald-300 rounded text-[11px] border border-gray-700" title="Download PDF"><i class="fa-solid fa-file-pdf mr-1"></i> PDF</button>
+                        <button onclick="removeTicket('${ticket.token}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[11px] border border-red-500/30 transition-all" title="Delete Ticket">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /* =========================================================================
+           AUDIT LOGGING & ANALYTICS DASHBOARD
+           ========================================================================= */
+        function recordAuditLog(token, name, resultType, notes) {
+            auditLogs.unshift({
+                timestamp: new Date().toLocaleTimeString(),
+                token: token,
+                name: name,
+                resultType: resultType,
+                notes: notes
+            });
+            saveAuditLogsToStorage();
+        }
+
+        function renderDashboard() {
+            const total = ticketsDatabase.length;
+            const checkedIn = ticketsDatabase.filter(t => t.status === 'CHECKED_IN').length;
+            const unscanned = total - checkedIn;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-checked-in').textContent = checkedIn;
+            document.getElementById('stat-unscanned').textContent = unscanned < 0 ? 0 : unscanned;
+            document.getElementById('stat-duplicates').textContent = duplicateAttemptsCount;
+
+            const tbody = document.getElementById('audit-log-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (auditLogs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-500">No activity recorded yet</td></tr>`;
+                return;
+            }
+
+            auditLogs.forEach(log => {
+                const tr = document.createElement('tr');
+                let badgeClass = 'bg-gray-800 text-gray-300';
+
+                if (log.resultType === 'SUCCESS_CHECKIN') {
+                    badgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                } else if (log.resultType === 'REJECTED_DUPLICATE') {
+                    badgeClass = 'bg-red-500/20 text-red-300 border border-red-500/30 font-bold';
+                } else if (log.resultType === 'REJECTED_INVALID') {
+                    badgeClass = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                } else if (log.resultType === 'TICKET_REMOVED' || log.resultType === 'REGISTRY_CLEARED') {
+                    badgeClass = 'bg-red-500/10 text-red-400 border border-red-500/20 font-semibold';
+                } else if (log.resultType === 'TICKET_ISSUED') {
+                    badgeClass = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 font-mono text-gray-400">${log.timestamp}</td>
+                    <td class="py-3 px-3 font-semibold text-white">${log.name}</td>
+                    <td class="py-3 px-3 font-mono text-indigo-300 text-[11px]">${log.token.length > 14 ? log.token.substring(0, 14) + '...' : log.token}</td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] ${badgeClass}">${log.resultType}</span>
+                    </td>
+                    <td class="py-3 px-3 text-gray-400">${log.notes}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function exportAuditLogs() {
+            if (auditLogs.length === 0) {
+                alert("No logs available to export.");
+                return;
+            }
+            let csv = "Timestamp,Attendee Name,Token UUID,Result,Notes\n";
+            auditLogs.forEach(l => {
+                csv += `"${l.timestamp}","${l.name}","${l.token}","${l.resultType}","${l.notes}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `Event_Scan_Audit_Log_${Date.now()}.csv`);
+            a.click();
+        }
+
+        function clearAuditLogs() {
+            auditLogs = [];
+            duplicateAttemptsCount = 0;
+            saveAuditLogsToStorage();
+            renderDashboard();
+        }
+
+        /* =========================================================================
+           QR MODAL VIEW & ACTIONS
+           ========================================================================= */
+        function openQrModal(tokenStr) {
+            const ticket = ticketsDatabase.find(t => t.token === tokenStr);
+            if (!ticket) return;
+
+            activeModalToken = ticket.token;
+            document.getElementById('modal-name').textContent = ticket.name;
+            document.getElementById('modal-token').textContent = ticket.token;
+
+            const qrContainer = document.getElementById('modal-qrcode');
+            qrContainer.innerHTML = '';
+            
+            new QRCode(qrContainer, {
+                text: ticket.token,
+                width: 220,
+                height: 220,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            document.getElementById('qr-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('qr-modal').classList.add('hidden');
+            activeModalToken = null;
+        }
+
+        function triggerModalScan() {
+            if (activeModalToken) {
+                const tok = activeModalToken;
+                closeModal();
+                switchTab('scanner');
+                processScannedToken(tok);
+            }
+        }
+
+        /* =========================================================================
+           INITIALIZATION ON PAGE LOAD
+           ========================================================================= */
+        window.onload = function() {
+            renderQuickTestButtons();
+            renderDashboard();
+        };
+    </script>
+</body>
+</html>

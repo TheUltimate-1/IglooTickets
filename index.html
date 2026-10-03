@@ -1,0 +1,3279 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EventShield QR - Enterprise Event Ticketing & Mobile Scanner</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- jsQR for video stream decoding -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <!-- jsPDF for ticket generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- PapaParse for bulletproof CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Supabase JS Client (Free Tier Cloud Database & Realtime Sync) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.42.0/dist/umd/supabase.min.js"></script>
+
+    <!-- App Configuration & Initial Data Store -->
+    <script src="config.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #080c16;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism panels */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* Viewfinder Laser Animation */
+        @keyframes scan-laser {
+            0% { top: 0%; opacity: 0.8; }
+            50% { top: 96%; opacity: 1; }
+            100% { top: 0%; opacity: 0.8; }
+        }
+        .scan-laser {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #22c55e, #4ade80, #22c55e, transparent);
+            box-shadow: 0 0 16px #22c55e, 0 0 24px #4ade80;
+            animation: scan-laser 2.4s infinite ease-in-out;
+        }
+
+        /* Duplicate Alert Flash */
+        @keyframes pulse-danger {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { transform: scale(1.02); box-shadow: 0 0 25px 6px rgba(239, 68, 68, 0.5); }
+        }
+        .animate-pulse-danger {
+            animation: pulse-danger 1.2s infinite ease-in-out;
+        }
+
+        /* Scan Hit Highlight */
+        .scan-hit {
+            border-color: #22c55e !important;
+            box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.45) !important;
+            transition: all 0.15s ease-out;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d3748;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a5568;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-indigo-600 selection:text-white">
+
+    <!-- ========================================================================= -->
+    <!-- TOP NAVIGATION BAR -->
+    <!-- ========================================================================= -->
+    <header class="glass-panel sticky top-0 z-40 border-b border-gray-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 gap-2">
+                
+                <!-- Left: Brand & Active Event Selector -->
+                <div class="flex items-center space-x-3 sm:space-x-4 min-w-0">
+                    <div class="p-2 bg-gradient-to-tr from-indigo-700 to-indigo-500 text-white rounded-xl shadow-md shadow-indigo-600/20 flex-shrink-0">
+                        <i class="fa-solid fa-shield-halved text-xl"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base sm:text-lg font-bold tracking-tight text-white truncate">EventShield</span>
+                            <span id="header-mode-badge" onclick="openDatabaseModal()" class="cursor-pointer text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 transition-all flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span id="header-mode-text">Demo Mode</span>
+                            </span>
+                        </div>
+                        
+                        <!-- Event Switcher (Shown for Master Admin and Event Admin) -->
+                        <div id="event-switcher-container" class="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400">
+                            <i class="fa-solid fa-calendar-days text-[11px] text-indigo-400"></i>
+                            <select id="active-event-select" onchange="handleEventSwitch(this.value)" class="bg-transparent text-indigo-200 hover:text-white font-medium border-0 focus:ring-0 p-0 text-xs cursor-pointer max-w-[180px] sm:max-w-xs truncate">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Navigation Links, Active Role Badge & Profile -->
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <!-- Dynamic Nav Tabs (hidden on small mobile, handled via bottom/drawer) -->
+                    <nav id="main-nav-tabs" class="hidden md:flex items-center space-x-1">
+                        <!-- Populated by renderNavigation() based on logged in role -->
+                    </nav>
+
+                    <!-- Cloud DB Setup Button -->
+                    <button onclick="openDatabaseModal()" class="p-2 text-gray-400 hover:text-indigo-400 hover:bg-gray-800 rounded-lg transition-all text-sm" title="Database & Realtime Cloud Sync">
+                        <i class="fa-solid fa-cloud"></i>
+                    </button>
+
+                    <!-- Active User / Role Badge -->
+                    <div id="user-profile-badge" class="flex items-center space-x-2 bg-gray-900/80 border border-gray-800 rounded-xl px-2.5 py-1.5">
+                        <div id="user-role-icon" class="text-indigo-400 text-sm">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <div class="hidden sm:block text-left text-xs">
+                            <div id="user-display-name" class="font-semibold text-white leading-tight">Master Admin</div>
+                            <div id="user-role-label" class="text-[10px] text-indigo-400 font-mono">MASTER_ADMIN</div>
+                        </div>
+                        <button onclick="openLoginModal()" class="text-xs text-gray-400 hover:text-red-400 p-1 rounded transition-colors" title="Switch User / Logout">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Mobile Navigation Strip (Visible on small screens) -->
+        <div id="mobile-nav-strip" class="md:hidden flex items-center justify-around px-2 py-1.5 border-t border-gray-800/80 bg-gray-950/80 text-xs overflow-x-auto">
+            <!-- Populated dynamically -->
+        </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- MAIN CONTENT CONTAINER -->
+    <!-- ========================================================================= -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- ===================================================================== -->
+        <!-- VIEW 1: GATEWAY SCANNER (TICKET_SCANNER, EVENT_ADMIN, MASTER_ADMIN) -->
+        <!-- ===================================================================== -->
+        <section id="view-scanner" class="tab-view space-y-6 hidden">
+            <!-- Top Controls: Station Gate Selector & Sync Status -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                        <i class="fa-solid fa-qrcode text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            Gateway Scanner Station
+                            <span id="scanner-gate-badge" class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-normal">Gate 1</span>
+                        </h2>
+                        <p class="text-xs text-gray-400">Single-use verification with instant duplicate entry prevention.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <label class="text-xs text-gray-400 font-medium">Station:</label>
+                    <select id="scanner-station-select" onchange="changeGateStation(this.value)" class="bg-gray-900 border border-gray-700 text-white rounded-lg px-2.5 py-1 text-xs focus:ring-1 focus:ring-indigo-500">
+                        <option value="Gate 1 (Main Entrance)">Gate 1 (Main Entrance)</option>
+                        <option value="Gate 2 (VIP / Media)">Gate 2 (VIP / Media)</option>
+                        <option value="North Turnstile">North Turnstile</option>
+                        <option value="South Turnstile">South Turnstile</option>
+                        <option value="Mobile Field Unit">Mobile Field Unit</option>
+                    </select>
+
+                    <div id="scanner-sync-status" class="px-2.5 py-1 rounded-lg text-xs font-medium border bg-emerald-500/10 text-emerald-300 border-emerald-500/30 flex items-center gap-1.5" title="Real-time check-in sync">
+                        <i class="fa-solid fa-circle text-[8px] text-emerald-400"></i>
+                        <span id="scanner-sync-text">Live Sync</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Column: Camera Viewfinder & Media Controls -->
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="glass-panel p-5 rounded-2xl relative overflow-hidden">
+                        
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-camera text-indigo-400"></i> Video Feed
+                            </span>
+                            <div class="flex items-center space-x-2">
+                                <span id="camera-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                                <span id="camera-status-text" class="text-xs text-gray-400 font-medium">Ready</span>
+                            </div>
+                        </div>
+
+                        <!-- Video Scanner Feed Box -->
+                        <div class="relative aspect-video sm:aspect-[4/3] bg-black/90 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center">
+                            <video id="webcam-video" class="w-full h-full object-cover hidden" playsinline></video>
+                            <canvas id="qr-canvas" class="hidden"></canvas>
+                            
+                            <!-- Scanner Overlay Graphics -->
+                            <div id="viewfinder-overlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <div id="scan-frame" class="w-52 h-52 sm:w-64 sm:h-64 border-2 border-indigo-500/50 rounded-2xl relative transition-all">
+                                    <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl"></div>
+                                    <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr"></div>
+                                    <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-indigo-400 rounded-bl"></div>
+                                    <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-indigo-400 rounded-br"></div>
+                                    <div id="laser-line" class="scan-laser hidden"></div>
+                                </div>
+                                <p class="text-[11px] text-gray-300 mt-4 bg-gray-950/80 px-3 py-1 rounded-full backdrop-blur-md border border-gray-800">
+                                    Align attendee QR ticket in frame
+                                </p>
+                            </div>
+
+                            <!-- Start Camera Overlay (When Camera Inactive) -->
+                            <div id="camera-start-overlay" class="absolute inset-0 bg-gray-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                                <div class="p-4 bg-indigo-600/10 rounded-full border border-indigo-500/20 text-indigo-400">
+                                    <i class="fa-solid fa-camera-viewfinder text-3xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-white text-base">Camera Scanner Offline</h3>
+                                    <p class="text-xs text-gray-400 mt-1 max-w-xs">Start device camera, upload QR screenshot, or use instant simulation below.</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2 justify-center">
+                                    <button onclick="startCamera()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all shadow-lg shadow-indigo-600/30 flex items-center gap-2">
+                                        <i class="fa-solid fa-power-off"></i> Start Live Camera
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scanner Bottom Controls Toolbar -->
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-800/80">
+                            <div class="flex items-center space-x-2">
+                                <button id="stop-cam-btn" onclick="stopCamera()" class="hidden px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-medium transition-all">
+                                    <i class="fa-solid fa-stop mr-1"></i> Stop Camera
+                                </button>
+                                <button id="flip-cam-btn" onclick="flipCamera()" class="hidden px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-lg text-xs font-medium transition-all" title="Switch Front/Back Camera">
+                                    <i class="fa-solid fa-camera-rotate mr-1"></i> Flip
+                                </button>
+                                <button id="torch-cam-btn" onclick="toggleTorch()" class="hidden px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-medium transition-all" title="Toggle Flashlight">
+                                    <i class="fa-solid fa-lightbulb mr-1"></i> Torch
+                                </button>
+                                
+                                <label class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-xs font-medium cursor-pointer transition-all border border-gray-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-file-image text-indigo-400"></i> Upload Image
+                                    <input type="file" id="qr-file-input" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                                </label>
+                            </div>
+
+                            <!-- Manual Token Input Fallback -->
+                            <div class="flex items-center space-x-1.5">
+                                <input type="text" id="manual-token-input" placeholder="Manual Token UUID..." class="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 w-36 sm:w-44 font-mono">
+                                <button onclick="handleManualTokenSubmit()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold">Verify</button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Quick Testing Simulation Buttons -->
+                    <div class="glass-panel p-4 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-bolt text-amber-400"></i> Quick Simulation Scanners
+                            </span>
+                            <span class="text-[11px] text-indigo-400">1-Click instant test</span>
+                        </div>
+                        <div id="quick-test-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Verification Result Card -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div id="result-card" class="glass-panel p-6 rounded-2xl flex flex-col justify-between h-full min-h-[460px] transition-all border-2 border-gray-800">
+                        
+                        <div>
+                            <!-- Header Status Badge -->
+                            <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+                                <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Gate Verification</span>
+                                <span id="status-badge" class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-800 text-gray-400 border border-gray-700">
+                                    Awaiting Scan
+                                </span>
+                            </div>
+
+                            <!-- Dynamic Visual Feedback -->
+                            <div id="result-body" class="py-10 flex flex-col items-center justify-center text-center space-y-4">
+                                <div id="result-icon-bg" class="w-24 h-24 rounded-full bg-gray-800/80 border border-gray-700 flex items-center justify-center text-gray-500 transition-all">
+                                    <i id="result-icon" class="fa-solid fa-qrcode text-4xl"></i>
+                                </div>
+                                <div class="space-y-1">
+                                    <h3 id="result-title" class="text-xl font-bold text-white">Ready for Check-In</h3>
+                                    <p id="result-subtitle" class="text-xs text-gray-400 max-w-xs mx-auto">
+                                        Scan an attendee ticket using the camera, file upload, or manual token code.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Detailed Result Info Box -->
+                            <div id="result-details" class="hidden glass-card p-4 rounded-xl space-y-2.5 text-xs">
+                                <div class="flex justify-between items-center text-gray-400 pb-2 border-b border-gray-800">
+                                    <span>Attendee Name:</span>
+                                    <span id="detail-name" class="font-bold text-white text-sm">--</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-400 pb-2 border-b border-gray-800">
+                                    <span>Ticket Tier:</span>
+                                    <span id="detail-tier" class="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-500/20 text-indigo-300">--</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-400 pb-2 border-b border-gray-800">
+                                    <span>Token UUID:</span>
+                                    <span id="detail-token" class="font-mono text-indigo-300 text-[11px]">--</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-400 pb-2 border-b border-gray-800">
+                                    <span>Gate Station:</span>
+                                    <span id="detail-gate" class="text-gray-200 font-medium">--</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-400">
+                                    <span id="detail-scan-label">Check-In Time:</span>
+                                    <span id="detail-scanned-at" class="font-bold text-emerald-400">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer Anti-Duplicate Notice -->
+                        <div class="pt-4 border-t border-gray-800 text-center">
+                            <p class="text-[11px] text-gray-500 flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-shield-cat text-emerald-400"></i>
+                                Single-use validation active. Duplicate scans are rejected automatically.
+                            </p>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- VIEW 2: TICKET REGISTRY (TICKETING_AGENT, EVENT_ADMIN, MASTER_ADMIN) -->
+        <!-- ===================================================================== -->
+        <section id="view-tickets" class="tab-view space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl space-y-4">
+                
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-ticket text-indigo-400"></i> Registered Attendee Passes
+                        </h2>
+                        <p class="text-xs text-gray-400">Inspect registered tickets, download printable PDFs, view QR codes, or revoke entry.</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span id="registry-count-badge" class="px-2.5 py-1 bg-gray-800 text-indigo-300 border border-gray-700 rounded-full text-xs font-semibold">
+                            0 Passes
+                        </span>
+                        <button onclick="switchTab('issue-tickets')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition-all shadow-md shadow-indigo-600/30 flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Issue Pass
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters & Search Toolbar -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-500 text-xs"></i>
+                        <input type="text" id="registry-search" oninput="renderRegistryTable()" placeholder="Search attendee name, email, or token..." class="w-full pl-9 pr-4 py-2 bg-gray-900/80 border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <select id="registry-tier-filter" onchange="renderRegistryTable()" class="w-full py-2 px-3 bg-gray-900/80 border border-gray-700 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500">
+                            <option value="ALL">All Tiers</option>
+                            <!-- Dynamically populated from event tiers -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Registry Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-900/90 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800">
+                            <tr>
+                                <th class="py-3 px-3">Attendee</th>
+                                <th class="py-3 px-3">Tier</th>
+                                <th class="py-3 px-3">Token UUID</th>
+                                <th class="py-3 px-3">Status</th>
+                                <th class="py-3 px-3">Scanned Details</th>
+                                <th class="py-3 px-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registry-tbody" class="divide-y divide-gray-800/60 text-gray-300">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- VIEW 3: ISSUE PASSES (SINGLE & BULK CSV) -->
+        <!-- ===================================================================== -->
+        <section id="view-issue-tickets" class="tab-view space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left: Issuance Forms (Single vs CSV Tabs) -->
+                <div class="lg:col-span-6 space-y-5">
+                    <div class="glass-panel p-6 rounded-2xl space-y-5">
+                        
+                        <!-- Toggle: Single Pass vs Bulk CSV -->
+                        <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+                            <div>
+                                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-id-card-clip text-indigo-400"></i> Generate Passes
+                                </h3>
+                                <p class="text-xs text-gray-400">Issue individual e-tickets or bulk upload attendee manifests.</p>
+                            </div>
+                            <div class="flex p-1 bg-gray-900 rounded-xl border border-gray-800">
+                                <button onclick="setIssueMode('single')" id="btn-issue-single" class="px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600 text-white">Single</button>
+                                <button onclick="setIssueMode('bulk')" id="btn-issue-bulk" class="px-3 py-1 text-xs font-semibold rounded-lg text-gray-400 hover:text-white">Bulk CSV</button>
+                            </div>
+                        </div>
+
+                        <!-- Single Pass Form -->
+                        <form id="single-pass-form" onsubmit="handleSinglePassSubmit(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                                    Attendee Full Name *
+                                </label>
+                                <input type="text" id="pass-name-input" required placeholder="e.g. Dr. Maya Lin, VIP-409" class="w-full px-3.5 py-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                                    Attendee Email (Optional)
+                                </label>
+                                <input type="email" id="pass-email-input" placeholder="attendee@company.com" class="w-full px-3.5 py-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                                    Ticket Tier / Access Level *
+                                </label>
+                                <select id="pass-tier-select" class="w-full px-3.5 py-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500">
+                                    <!-- Populated dynamically from event tiers -->
+                                </select>
+                            </div>
+
+                            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-qrcode"></i> Generate Secure Pass
+                            </button>
+                        </form>
+
+                        <!-- Bulk CSV Upload Form -->
+                        <div id="bulk-pass-form" class="space-y-4 hidden">
+                            <div class="p-3 bg-gray-900/80 rounded-xl border border-dashed border-gray-700 text-center space-y-2">
+                                <i class="fa-solid fa-file-csv text-3xl text-indigo-400"></i>
+                                <div>
+                                    <span class="text-xs font-semibold text-white">Upload CSV File</span>
+                                    <p class="text-[11px] text-gray-400">Format: Name, Tier, Email (or Name, Tier)</p>
+                                </div>
+                                <input type="file" id="csv-file-input" accept=".csv,text/csv" onchange="handleCsvFileSelected(event)" class="text-xs text-gray-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                                    Or Paste CSV Rows:
+                                </label>
+                                <textarea id="csv-paste-area" rows="4" placeholder="Sarah Connor, VIP Platinum Pass, sarah@cyber.com&#10;John Doe, General Delegate, john@mail.com" class="w-full p-2.5 bg-gray-900 border border-gray-700 rounded-xl text-xs text-white font-mono placeholder-gray-600 focus:outline-none focus:border-indigo-500"></textarea>
+                            </div>
+
+                            <button type="button" onclick="parseAndPreviewCsv()" class="w-full py-2 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl text-xs transition-all border border-gray-700 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-table-list"></i> Parse & Preview Attendees
+                            </button>
+
+                            <!-- CSV Preview Table -->
+                            <div id="csv-preview-container" class="space-y-2 hidden">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span id="csv-preview-count" class="font-bold text-emerald-400">0 Attendees Parsed</span>
+                                    <button onclick="commitBulkImport()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1 shadow-md shadow-emerald-600/30">
+                                        <i class="fa-solid fa-check"></i> Import & Generate Passes
+                                    </button>
+                                </div>
+                                <div class="max-h-48 overflow-y-auto border border-gray-800 rounded-xl">
+                                    <table class="w-full text-left text-[11px]">
+                                        <thead class="bg-gray-900 text-gray-400">
+                                            <tr>
+                                                <th class="p-2">Name</th>
+                                                <th class="p-2">Tier</th>
+                                                <th class="p-2">Email</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="csv-preview-tbody" class="divide-y divide-gray-800 text-gray-300"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Right: Ticket Preview Box -->
+                <div class="lg:col-span-6 space-y-4">
+                    <div id="ticket-live-preview-box" class="glass-panel p-6 rounded-2xl hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check"></i> Ticket Generated Successfully
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="downloadActivePreviewPdf()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                                    <i class="fa-solid fa-file-pdf"></i> Download PDF
+                                </button>
+                                <button onclick="document.getElementById('ticket-live-preview-box').classList.add('hidden')" class="text-gray-400 hover:text-white text-xs p-1">
+                                    <i class="fa-solid fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Ticket Graphic Card -->
+                        <div class="bg-gradient-to-br from-indigo-950/80 via-gray-900 to-black p-6 rounded-2xl border border-indigo-500/40 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
+                            <div class="space-y-3 text-center sm:text-left z-10">
+                                <span id="preview-card-tier" class="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-[11px] font-semibold">
+                                    VIP Access
+                                </span>
+                                <h3 id="preview-card-name" class="text-xl font-bold text-white tracking-tight">Attendee Name</h3>
+                                <div class="text-[11px] text-gray-400 space-y-1">
+                                    <p>Event: <span id="preview-card-event" class="text-gray-200 font-medium">TechHorizon 2026</span></p>
+                                    <p>Token ID: <span id="preview-card-token" class="font-mono text-indigo-300">--</span></p>
+                                    <p>Status: <span class="text-emerald-400 font-semibold">VALID (Unscanned)</span></p>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-3 rounded-xl shadow-2xl flex flex-col items-center justify-center z-10 flex-shrink-0">
+                                <div id="preview-card-qrcode"></div>
+                                <span class="text-[9px] text-gray-600 mt-1 font-mono font-bold">SCAN AT GATE</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Guidelines Card -->
+                    <div class="glass-panel p-5 rounded-2xl space-y-3">
+                        <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-circle-info text-indigo-400"></i> Pass Security & Anti-Counterfeiting
+                        </h4>
+                        <ul class="text-xs text-gray-400 space-y-2 list-disc list-inside">
+                            <li>Each ticket is assigned a unique RFC4122 v4 UUID with error-tolerant QR encoding.</li>
+                            <li>PDF tickets export in 200mm × 90mm landscape dimensions with attendee name scaling and quiet zones.</li>
+                            <li>Once scanned at any gate station, the database atomically flips status to <span class="text-emerald-400 font-mono">CHECKED_IN</span>.</li>
+                            <li>Any photocopies or forwarded screenshot QR codes will be flagged as duplicates immediately.</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- VIEW 4: STAFF & USER MANAGEMENT (EVENT_ADMIN & MASTER_ADMIN) -->
+        <!-- ===================================================================== -->
+        <section id="view-users" class="tab-view space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl space-y-4">
+                
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-users-gear text-indigo-400"></i>
+                            <span id="user-management-title">Event Staff & Access Management</span>
+                        </h2>
+                        <p class="text-xs text-gray-400">Create staff accounts, assign roles, and reset passwords or mobile gate PINs on the spot.</p>
+                    </div>
+
+                    <button onclick="openCreateUserModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all shadow-md shadow-indigo-600/30 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-plus"></i> Add New Staff Member
+                    </button>
+                </div>
+
+                <!-- Users Directory Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-900/90 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800">
+                            <tr>
+                                <th class="py-3 px-3">Username / Name</th>
+                                <th class="py-3 px-3">Role</th>
+                                <th class="py-3 px-3">Optional Email</th>
+                                <th class="py-3 px-3">Assigned Events</th>
+                                <th class="py-3 px-3">Status</th>
+                                <th class="py-3 px-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody" class="divide-y divide-gray-800/60 text-gray-300">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- VIEW 5: EVENTS MANAGER (MASTER_ADMIN EXCLUSIVE) -->
+        <!-- ===================================================================== -->
+        <section id="view-events-manager" class="tab-view space-y-6 hidden">
+            <div class="glass-panel p-6 rounded-2xl space-y-4">
+                
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sitemap text-indigo-400"></i> Global Events Directory
+                        </h2>
+                        <p class="text-xs text-gray-400">Master Admin controls: configure multiple events, custom ticket tiers, and gate PINs.</p>
+                    </div>
+
+                    <button onclick="openCreateEventModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all shadow-md shadow-indigo-600/30 flex items-center gap-1.5">
+                        <i class="fa-solid fa-calendar-plus"></i> Create New Event
+                    </button>
+                </div>
+
+                <!-- Events Grid Cards -->
+                <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Populated dynamically -->
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- VIEW 6: ANALYTICS & AUDIT LOGS -->
+        <!-- ===================================================================== -->
+        <section id="view-analytics" class="tab-view space-y-6 hidden">
+            <!-- Stats Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Total Passes Issued</p>
+                        <h4 id="stat-total" class="text-2xl font-bold text-white mt-1">0</h4>
+                    </div>
+                    <div class="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+                        <i class="fa-solid fa-ticket text-xl"></i>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Checked-In Attendees</p>
+                        <h4 id="stat-checked-in" class="text-2xl font-bold text-emerald-400 mt-1">0</h4>
+                    </div>
+                    <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                        <i class="fa-solid fa-user-check text-xl"></i>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Pending Entry</p>
+                        <h4 id="stat-pending" class="text-2xl font-bold text-amber-400 mt-1">0</h4>
+                    </div>
+                    <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                        <i class="fa-solid fa-clock text-xl"></i>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Duplicate Scan Flags</p>
+                        <h4 id="stat-duplicates" class="text-2xl font-bold text-red-400 mt-1">0</h4>
+                    </div>
+                    <div class="p-3 bg-red-500/10 text-red-400 rounded-xl border border-red-500/20">
+                        <i class="fa-solid fa-shield-cat text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Log Table -->
+            <div class="glass-panel p-6 rounded-2xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Entrance Audit Trail
+                        </h3>
+                        <p class="text-xs text-gray-400">Real-time log of approved check-ins, duplicate rejections, and gate activity.</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="exportAuditLogsCsv()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-medium border border-gray-700 flex items-center gap-1.5 transition-all">
+                            <i class="fa-solid fa-file-arrow-down"></i> Export CSV
+                        </button>
+                        <button onclick="clearAuditLogsHistory()" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs font-medium border border-red-500/20 transition-all">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-900/90 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800">
+                            <tr>
+                                <th class="py-3 px-3">Time</th>
+                                <th class="py-3 px-3">Attendee</th>
+                                <th class="py-3 px-3">Result</th>
+                                <th class="py-3 px-3">Gate Station</th>
+                                <th class="py-3 px-3">Staff</th>
+                                <th class="py-3 px-3">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-tbody" class="divide-y divide-gray-800/60 text-gray-300">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- FOOTER -->
+    <!-- ========================================================================= -->
+    <footer class="glass-panel border-t border-gray-800/80 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+            <span>EventShield QR Core &copy; 2026 &bull; Multi-Role Access Control</span>
+            <div class="flex items-center gap-3">
+                <span class="text-gray-400 flex items-center gap-1">
+                    <i class="fa-solid fa-lock text-emerald-400"></i> Single-Use Cryptographic QR
+                </span>
+                <span id="footer-connection-indicator" class="text-emerald-400 flex items-center gap-1">
+                    <i class="fa-solid fa-circle text-[8px]"></i> System Ready
+                </span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Notification Banner -->
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] hidden max-w-sm w-[90%] px-4 py-2.5 rounded-xl text-xs text-center border backdrop-blur-md shadow-2xl transition-all"></div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 1: AUTHENTICATION & QUICK ROLE SWITCHER -->
+    <!-- ========================================================================= -->
+    <div id="login-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-5 border border-indigo-500/30 relative shadow-2xl">
+            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-base"></i>
+            </button>
+
+            <div class="text-center space-y-1">
+                <div class="inline-flex p-3 bg-indigo-600/10 text-indigo-400 rounded-2xl border border-indigo-500/20 mb-2">
+                    <i class="fa-solid fa-user-shield text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">EventShield Access Portal</h3>
+                <p class="text-xs text-gray-400">Select login mode or click a 1-click test role below.</p>
+            </div>
+
+            <!-- Tab Switcher: Staff Credentials vs Gate Scanner PIN -->
+            <div class="flex p-1 bg-gray-900 rounded-xl border border-gray-800 text-xs">
+                <button onclick="setAuthTab('staff')" id="auth-tab-staff" class="flex-1 py-1.5 font-semibold rounded-lg bg-indigo-600 text-white">
+                    <i class="fa-solid fa-key mr-1"></i> Staff Login
+                </button>
+                <button onclick="setAuthTab('pin')" id="auth-tab-pin" class="flex-1 py-1.5 font-semibold rounded-lg text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-mobile-screen mr-1"></i> Mobile Gate PIN
+                </button>
+            </div>
+
+            <!-- Form A: Staff Login (Username & Password) -->
+            <form id="staff-login-form" onsubmit="handleStaffLogin(event)" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Username or Email</label>
+                    <input type="text" id="login-username" required placeholder="master_admin, event_admin, agent..." class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30">
+                    Sign In as Staff
+                </button>
+            </form>
+
+            <!-- Form B: Mobile Gate PIN Login (Event Code + 4-digit PIN) -->
+            <form id="pin-login-form" onsubmit="handlePinLogin(event)" class="space-y-3.5 hidden">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Event Code</label>
+                    <input type="text" id="pin-event-code" required placeholder="e.g. TECH26" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono uppercase placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Gate 4-Digit PIN</label>
+                    <input type="password" maxlength="6" id="pin-input" required placeholder="e.g. 7788" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono tracking-widest text-center text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/30">
+                    Unlock Gate Scanner
+                </button>
+            </form>
+
+            <!-- Quick 1-Click Role Testing Palette -->
+            <div class="pt-3 border-t border-gray-800 space-y-2">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Quick 1-Click Role Test:</span>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button type="button" onclick="quickLoginRole('MASTER_ADMIN')" class="p-2 bg-gray-900 hover:bg-indigo-950/40 text-left rounded-xl border border-gray-800 text-gray-300 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-crown text-amber-400 text-xs"></i>
+                        <div>
+                            <div class="font-semibold text-[11px] text-white">Master Admin</div>
+                            <div class="text-[9px] text-gray-500">Global control</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="quickLoginRole('EVENT_ADMIN')" class="p-2 bg-gray-900 hover:bg-indigo-950/40 text-left rounded-xl border border-gray-800 text-gray-300 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-user-shield text-indigo-400 text-xs"></i>
+                        <div>
+                            <div class="font-semibold text-[11px] text-white">Event Admin</div>
+                            <div class="text-[9px] text-gray-500">Staff + Tickets</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="quickLoginRole('TICKETING_AGENT')" class="p-2 bg-gray-900 hover:bg-indigo-950/40 text-left rounded-xl border border-gray-800 text-gray-300 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-ticket text-emerald-400 text-xs"></i>
+                        <div>
+                            <div class="font-semibold text-[11px] text-white">Ticketing Agent</div>
+                            <div class="text-[9px] text-gray-500">Issue & Export</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="quickLoginRole('TICKET_SCANNER')" class="p-2 bg-gray-900 hover:bg-indigo-950/40 text-left rounded-xl border border-gray-800 text-gray-300 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-qrcode text-cyan-400 text-xs"></i>
+                        <div>
+                            <div class="font-semibold text-[11px] text-white">Gate Scanner</div>
+                            <div class="text-[9px] text-gray-500">Fast Mobile Scan</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 2: SUPABASE & CLOUD DATABASE SETUP WIZARD -->
+    <!-- ========================================================================= -->
+    <div id="database-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-lg w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button onclick="closeDatabaseModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-base"></i>
+            </button>
+
+            <div class="flex items-center space-x-3 text-indigo-400">
+                <div class="p-3 bg-indigo-600/10 rounded-2xl border border-indigo-500/20 text-xl">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-white">Cloud Database & Live Sync</h3>
+                    <p class="text-xs text-gray-400">Connect your 100% Free Supabase PostgreSQL project</p>
+                </div>
+            </div>
+
+            <!-- Current Mode Status -->
+            <div class="p-3 bg-gray-900/90 rounded-xl border border-gray-800 flex items-center justify-between text-xs">
+                <div>
+                    <span class="text-gray-400">Active Mode:</span>
+                    <span id="modal-active-mode-text" class="font-bold text-emerald-400 ml-1">Demo Mode (Local Storage)</span>
+                </div>
+                <button onclick="toggleDemoMode()" id="modal-mode-toggle-btn" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-[11px] font-semibold border border-gray-700">
+                    Switch to Demo
+                </button>
+            </div>
+
+            <!-- Supabase Credentials Form -->
+            <div class="space-y-3 pt-1">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                        Supabase Project URL
+                    </label>
+                    <input type="url" id="sb-url-input" placeholder="https://xyzcompany.supabase.co" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500 font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                        Supabase Anon Public API Key
+                    </label>
+                    <input type="password" id="sb-key-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500 font-mono">
+                </div>
+
+                <div class="flex flex-wrap gap-2 pt-1">
+                    <button onclick="saveSupabaseConfig()" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-plug"></i> Connect & Save
+                    </button>
+                    <button onclick="copySqlSchemaToClipboard()" class="py-2 px-3 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded-xl text-xs transition-all border border-gray-700 flex items-center gap-1.5" title="Copy SQL script to paste into Supabase SQL editor">
+                        <i class="fa-solid fa-copy"></i> Copy SQL Schema
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick 3-Step Setup Guide -->
+            <div class="p-3.5 bg-indigo-950/30 rounded-xl border border-indigo-800/40 space-y-2 text-xs text-gray-300">
+                <span class="font-bold text-indigo-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-question"></i> How to set up Supabase in 60 seconds (100% Free):
+                </span>
+                <ol class="list-decimal list-inside space-y-1 text-[11px] text-gray-400">
+                    <li>Create a free account and project at <a href="https://supabase.com" target="_blank" class="text-indigo-400 underline">supabase.com</a>.</li>
+                    <li>Click <strong>SQL Editor</strong> in the Supabase dashboard and paste the copied schema script. Click <strong>Run</strong>.</li>
+                    <li>Go to <strong>Project Settings &rarr; API</strong>, copy your <strong>Project URL</strong> and <strong>Anon Key</strong>, paste them above, and click <strong>Connect & Save</strong>.</li>
+                </ol>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 3: CREATE / EDIT USER MODAL -->
+    <!-- ========================================================================= -->
+    <div id="user-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+            <button onclick="closeUserModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-base"></i>
+            </button>
+
+            <h3 id="user-modal-title" class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-indigo-400"></i> Add New Staff Member
+            </h3>
+
+            <form id="create-user-form" onsubmit="handleCreateUserSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Username *</label>
+                    <input type="text" id="modal-user-username" required placeholder="e.g. gate_turnstile_2" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500 font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Full Name</label>
+                    <input type="text" id="modal-user-fullname" placeholder="e.g. Liam Smith" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Optional Email</label>
+                    <input type="email" id="modal-user-email" placeholder="liam@turnstile.org (optional)" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Role *</label>
+                    <select id="modal-user-role" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500">
+                        <option value="TICKET_SCANNER">Ticket Scanner (Mobile Gate Validation)</option>
+                        <option value="TICKETING_AGENT">Ticketing Agent (Pass Issuance & PDF)</option>
+                        <option value="EVENT_ADMIN">Event Admin (Staff + Scanner + Tickets)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Password or Scanner PIN *</label>
+                    <input type="text" id="modal-user-password" required placeholder="password123 or 4-digit PIN" value="password123" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500 font-mono">
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 mt-2">
+                    <i class="fa-solid fa-save"></i> Save Account
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 4: RESET USER PASSWORD MODAL -->
+    <!-- ========================================================================= -->
+    <div id="reset-pwd-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-sm w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+            <button onclick="closeResetPwdModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-base"></i>
+            </button>
+
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-key text-amber-400"></i> Reset Password / PIN
+            </h3>
+            <p class="text-xs text-gray-400">Directly set a new password or PIN for <span id="reset-pwd-username" class="font-bold text-white"></span>.</p>
+
+            <form onsubmit="handleResetPasswordSubmit(event)" class="space-y-3">
+                <input type="hidden" id="reset-pwd-user-id">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">New Password or PIN</label>
+                    <input type="text" id="reset-pwd-input" required placeholder="Enter new password" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-amber-600/30">
+                    Update Password Immediately
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 5: CREATE NEW EVENT MODAL (MASTER_ADMIN) -->
+    <!-- ========================================================================= -->
+    <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+            <button onclick="closeCreateEventModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-base"></i>
+            </button>
+
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-calendar-plus text-indigo-400"></i> Create New Event
+            </h3>
+
+            <form onsubmit="handleCreateEventSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Event Name *</label>
+                    <input type="text" id="event-name-input" required placeholder="e.g. AI & Cloud Expo 2026" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Event Code *</label>
+                        <input type="text" id="event-code-input" required placeholder="e.g. AIEXPO26" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono uppercase placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Gate PIN *</label>
+                        <input type="text" id="event-pin-input" required placeholder="e.g. 5566" value="1234" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Date</label>
+                        <input type="date" id="event-date-input" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Location</label>
+                        <input type="text" id="event-location-input" placeholder="Convention Hall" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Custom Ticket Tiers (Comma-separated)</label>
+                    <input type="text" id="event-tiers-input" placeholder="VIP Pass, General Entry, Press" value="VIP Platinum, General Delegate, Speaker / VIP, Media" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 mt-2">
+                    <i class="fa-solid fa-plus"></i> Save & Launch Event
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 6: QR INSPECT POPUP -->
+    <!-- ========================================================================= -->
+    <div id="qr-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-sm w-full p-6 rounded-2xl space-y-4 text-center border border-gray-700 relative shadow-2xl">
+            <button onclick="closeQrModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-base"></i>
+            </button>
+
+            <h3 id="modal-qr-title" class="text-base font-bold text-white">Attendee Ticket QR</h3>
+            
+            <div class="bg-white p-4 rounded-xl inline-block mx-auto shadow-2xl">
+                <div id="modal-qrcode-container"></div>
+            </div>
+
+            <div class="text-xs text-gray-400 space-y-1">
+                <p>Attendee: <span id="modal-qr-name" class="font-bold text-white">--</span></p>
+                <p>Tier: <span id="modal-qr-tier" class="text-indigo-300 font-semibold">--</span></p>
+                <p class="font-mono text-gray-400 text-[10px] break-all" id="modal-qr-token">--</p>
+            </div>
+
+            <div class="pt-2 flex justify-center gap-2">
+                <button onclick="triggerModalQuickScan()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/30">
+                    <i class="fa-solid fa-bolt"></i> Test Scan
+                </button>
+                <button onclick="downloadActiveModalPdf()" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-gray-700">
+                    <i class="fa-solid fa-file-pdf"></i> Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- CORE SCRIPT & APPLICATION LOGIC -->
+    <!-- ========================================================================= -->
+    <script>
+        /* =========================================================================
+           1. STATE MANAGEMENT & SUPABASE CLIENT INITIALIZATION
+           ========================================================================= */
+        
+        let supabaseClient = null;
+        let isSupabaseConnected = false;
+
+        // Current Active User Session
+        let currentUser = null;
+
+        // Active Event Selection
+        let activeEventId = null;
+
+        // Local In-Memory & LocalStorage Cache
+        let eventsState = [];
+        let usersState = [];
+        let ticketsState = [];
+        let auditLogsState = [];
+        let duplicateCount = 0;
+
+        // Offline queued scans to flush when reconnected
+        let offlineScanQueue = [];
+
+        // Scanner State
+        const scanner = {
+            running: false,
+            busy: false,
+            lastTick: 0,
+            frame: 0,
+            lastValue: null,
+            lastSeenAt: 0,
+            detector: null,
+            ctx: null,
+            stream: null,
+            animId: null,
+            facingMode: 'environment',
+            torchOn: false
+        };
+
+        try {
+            if ('BarcodeDetector' in window) {
+                scanner.detector = new BarcodeDetector({ formats: ['qr_code'] });
+            }
+        } catch (e) {
+            scanner.detector = null;
+        }
+
+        // Active Modal state
+        let activeModalTicket = null;
+        let activePreviewTicket = null;
+
+        /* =========================================================================
+           2. INITIALIZATION ON LOAD
+           ========================================================================= */
+        window.addEventListener('DOMContentLoaded', async () => {
+            initStorageAndData();
+            await initSupabaseClient();
+            initSession();
+            renderNavigation();
+            renderEventsDropdown();
+            renderActiveView();
+            updateStats();
+        });
+
+        function initStorageAndData() {
+            try {
+                // Load or seed events
+                const storedEvents = localStorage.getItem('eventshield_events');
+                eventsState = storedEvents ? JSON.parse(storedEvents) : APP_CONFIG.defaultEvents;
+
+                // Load or seed users
+                const storedUsers = localStorage.getItem('eventshield_users');
+                usersState = storedUsers ? JSON.parse(storedUsers) : APP_CONFIG.defaultUsers;
+
+                // Load or seed tickets
+                const storedTickets = localStorage.getItem('eventshield_tickets');
+                ticketsState = storedTickets ? JSON.parse(storedTickets) : APP_CONFIG.defaultTickets;
+
+                // Load audit logs
+                const storedLogs = localStorage.getItem('eventshield_audit_logs');
+                auditLogsState = storedLogs ? JSON.parse(storedLogs) : [];
+
+                duplicateCount = parseInt(localStorage.getItem('eventshield_dup_count') || '0', 10);
+
+                // Set initial active event
+                activeEventId = localStorage.getItem('eventshield_active_event_id') || eventsState[0]?.id;
+            } catch (e) {
+                console.error("Storage load error:", e);
+                eventsState = APP_CONFIG.defaultEvents;
+                usersState = APP_CONFIG.defaultUsers;
+                ticketsState = APP_CONFIG.defaultTickets;
+                activeEventId = eventsState[0]?.id;
+            }
+        }
+
+        function saveStateToLocal() {
+            try {
+                localStorage.setItem('eventshield_events', JSON.stringify(eventsState));
+                localStorage.setItem('eventshield_users', JSON.stringify(usersState));
+                localStorage.setItem('eventshield_tickets', JSON.stringify(ticketsState));
+                localStorage.setItem('eventshield_audit_logs', JSON.stringify(auditLogsState));
+                localStorage.setItem('eventshield_dup_count', duplicateCount.toString());
+                if (activeEventId) localStorage.setItem('eventshield_active_event_id', activeEventId);
+            } catch (e) {
+                console.error("State save error:", e);
+            }
+        }
+
+        /* =========================================================================
+           3. SUPABASE CLIENT & LIVE REALTIME SYNC
+           ========================================================================= */
+        async function initSupabaseClient() {
+            const url = APP_CONFIG.supabaseUrl || localStorage.getItem('eventshield_sb_url');
+            const key = APP_CONFIG.supabaseAnonKey || localStorage.getItem('eventshield_sb_key');
+            const mode = localStorage.getItem('eventshield_mode') || 'DEMO';
+
+            if (mode === 'SUPABASE' && url && key && window.supabase) {
+                try {
+                    supabaseClient = window.supabase.createClient(url, key);
+                    // Test connection by fetching 1 row
+                    const { data, error } = await supabaseClient.from('events').select('id').limit(1);
+                    if (!error) {
+                        isSupabaseConnected = true;
+                        setConnectionBadge(true);
+                        setupRealtimeSubscriptions();
+                        await syncFromSupabase();
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Supabase connection failed, falling back to Demo Mode:", e);
+                }
+            }
+
+            // Fallback to Demo Mode
+            isSupabaseConnected = false;
+            setConnectionBadge(false);
+        }
+
+        function setConnectionBadge(isLive) {
+            const modeBadge = document.getElementById('header-mode-badge');
+            const modeText = document.getElementById('header-mode-text');
+            const modalModeText = document.getElementById('modal-active-mode-text');
+            const modalToggleBtn = document.getElementById('modal-mode-toggle-btn');
+            const footerConn = document.getElementById('footer-connection-indicator');
+
+            if (isLive) {
+                modeBadge.className = "cursor-pointer text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 transition-all flex items-center gap-1 shadow-sm shadow-emerald-500/20";
+                modeText.textContent = "⚡ Supabase Live";
+                modalModeText.textContent = "⚡ Supabase Connected (Live Multi-Device Sync)";
+                modalModeText.className = "font-bold text-emerald-400 ml-1";
+                modalToggleBtn.textContent = "Switch to Demo Mode";
+                footerConn.innerHTML = `<i class="fa-solid fa-circle text-[8px] text-emerald-400"></i> Cloud Realtime Synced`;
+            } else {
+                modeBadge.className = "cursor-pointer text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20 transition-all flex items-center gap-1";
+                modeText.textContent = "Demo Mode (Local)";
+                modalModeText.textContent = "Demo Mode (Local Storage)";
+                modalModeText.className = "font-bold text-indigo-400 ml-1";
+                modalToggleBtn.textContent = "Connect Supabase";
+                footerConn.innerHTML = `<i class="fa-solid fa-circle text-[8px] text-indigo-400"></i> Local Demo Mode`;
+            }
+        }
+
+        function setupRealtimeSubscriptions() {
+            if (!supabaseClient) return;
+            try {
+                supabaseClient
+                    .channel('public:tickets')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, payload => {
+                        handleRealtimeTicketChange(payload);
+                    })
+                    .subscribe();
+
+                supabaseClient
+                    .channel('public:audit_logs')
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, payload => {
+                        if (payload.new && payload.new.event_id === activeEventId) {
+                            auditLogsState.unshift(payload.new);
+                            renderAuditTable();
+                        }
+                    })
+                    .subscribe();
+            } catch (e) {
+                console.error("Realtime subscription error:", e);
+            }
+        }
+
+        function handleRealtimeTicketChange(payload) {
+            const { eventType, new: newRec, old: oldRec } = payload;
+            if (eventType === 'UPDATE' || eventType === 'INSERT') {
+                const idx = ticketsState.findIndex(t => t.id === newRec.id || t.token === newRec.token);
+                if (idx !== -1) {
+                    ticketsState[idx] = mapDbTicketToState(newRec);
+                } else if (newRec.event_id === activeEventId) {
+                    ticketsState.unshift(mapDbTicketToState(newRec));
+                }
+                renderRegistryTable();
+                renderQuickTestButtons();
+                updateStats();
+            }
+        }
+
+        async function syncFromSupabase() {
+            if (!supabaseClient || !isSupabaseConnected) return;
+            try {
+                const { data: events } = await supabaseClient.from('events').select('*');
+                if (events && events.length) {
+                    eventsState = events.map(e => ({
+                        id: e.id,
+                        name: e.name,
+                        code: e.code,
+                        date: e.date,
+                        location: e.location,
+                        gatePin: e.gate_pin,
+                        tiers: e.tiers || [],
+                        status: e.status
+                    }));
+                }
+
+                const { data: tickets } = await supabaseClient.from('tickets').select('*');
+                if (tickets && tickets.length) {
+                    ticketsState = tickets.map(mapDbTicketToState);
+                }
+
+                const { data: logs } = await supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100);
+                if (logs && logs.length) {
+                    auditLogsState = logs.map(l => ({
+                        id: l.id,
+                        eventId: l.event_id,
+                        timestamp: new Date(l.created_at).toLocaleTimeString(),
+                        token: l.token,
+                        name: l.attendee_name,
+                        resultType: l.result_type,
+                        gate: l.gate,
+                        staffName: l.staff_name,
+                        notes: l.notes
+                    }));
+                }
+
+                saveStateToLocal();
+                renderEventsDropdown();
+                renderRegistryTable();
+                renderQuickTestButtons();
+                updateStats();
+            } catch (e) {
+                console.error("Supabase sync error:", e);
+            }
+        }
+
+        function mapDbTicketToState(t) {
+            return {
+                id: t.id,
+                eventId: t.event_id,
+                token: t.token,
+                attendeeName: t.attendee_name,
+                attendeeEmail: t.attendee_email,
+                tier: t.tier,
+                status: t.status,
+                issuedAt: t.issued_at,
+                issuedBy: t.issued_by,
+                scannedAt: t.scanned_at,
+                scannedBy: t.scanned_by,
+                scannedGate: t.scanned_gate
+            };
+        }
+
+        /* =========================================================================
+           4. SESSION, AUTHENTICATION & ROLE MANAGEMENT
+           ========================================================================= */
+        function initSession() {
+            const savedUserId = localStorage.getItem('eventshield_session_user_id');
+            if (savedUserId) {
+                currentUser = usersState.find(u => u.id === savedUserId);
+            }
+            if (!currentUser) {
+                // Default to Master Admin so user starts fully empowered
+                currentUser = usersState.find(u => u.role === 'MASTER_ADMIN') || usersState[0];
+            }
+            updateUserProfileUI();
+        }
+
+        function updateUserProfileUI() {
+            if (!currentUser) return;
+            document.getElementById('user-display-name').textContent = currentUser.fullName || currentUser.username;
+            document.getElementById('user-role-label').textContent = currentUser.role;
+
+            const iconMap = {
+                'MASTER_ADMIN': 'fa-crown text-amber-400',
+                'EVENT_ADMIN': 'fa-user-shield text-indigo-400',
+                'TICKETING_AGENT': 'fa-ticket text-emerald-400',
+                'TICKET_SCANNER': 'fa-qrcode text-cyan-400'
+            };
+            document.getElementById('user-role-icon').innerHTML = `<i class="fa-solid ${iconMap[currentUser.role] || 'fa-user'}"></i>`;
+        }
+
+        function renderNavigation() {
+            const navTabs = document.getElementById('main-nav-tabs');
+            const mobileStrip = document.getElementById('mobile-nav-strip');
+            if (!currentUser) return;
+
+            const role = currentUser.role;
+            let tabs = [];
+
+            if (role === 'MASTER_ADMIN') {
+                tabs = [
+                    { id: 'scanner', label: 'Scanner', icon: 'fa-expand' },
+                    { id: 'tickets', label: 'Tickets', icon: 'fa-list-check' },
+                    { id: 'issue-tickets', label: 'Issue Passes', icon: 'fa-ticket' },
+                    { id: 'users', label: 'Global Staff', icon: 'fa-users-gear' },
+                    { id: 'events-manager', label: 'Events', icon: 'fa-sitemap' },
+                    { id: 'analytics', label: 'Analytics', icon: 'fa-chart-pie' }
+                ];
+            } else if (role === 'EVENT_ADMIN') {
+                tabs = [
+                    { id: 'scanner', label: 'Scanner', icon: 'fa-expand' },
+                    { id: 'tickets', label: 'Tickets', icon: 'fa-list-check' },
+                    { id: 'issue-tickets', label: 'Issue Passes', icon: 'fa-ticket' },
+                    { id: 'users', label: 'Event Staff', icon: 'fa-users' },
+                    { id: 'analytics', label: 'Analytics', icon: 'fa-chart-pie' }
+                ];
+            } else if (role === 'TICKETING_AGENT') {
+                tabs = [
+                    { id: 'tickets', label: 'Ticket Registry', icon: 'fa-list-check' },
+                    { id: 'issue-tickets', label: 'Issue Passes', icon: 'fa-ticket' }
+                ];
+            } else if (role === 'TICKET_SCANNER') {
+                tabs = [
+                    { id: 'scanner', label: 'Gateway Scanner', icon: 'fa-expand' }
+                ];
+            }
+
+            // Desktop tabs
+            navTabs.innerHTML = '';
+            tabs.forEach((t, i) => {
+                const btn = document.createElement('button');
+                btn.id = `nav-${t.id}`;
+                btn.onclick = () => switchTab(t.id);
+                btn.className = `px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 ${
+                    i === 0 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`;
+                btn.innerHTML = `<i class="fa-solid ${t.icon}"></i> <span>${t.label}</span>`;
+                navTabs.appendChild(btn);
+            });
+
+            // Mobile tabs
+            mobileStrip.innerHTML = '';
+            tabs.forEach((t, i) => {
+                const btn = document.createElement('button');
+                btn.id = `mobile-nav-${t.id}`;
+                btn.onclick = () => switchTab(t.id);
+                btn.className = `px-2 py-1 text-[11px] font-medium rounded transition-all flex items-center space-x-1 ${
+                    i === 0 ? 'text-indigo-400 font-bold' : 'text-gray-400'
+                }`;
+                btn.innerHTML = `<i class="fa-solid ${t.icon}"></i> <span>${t.label}</span>`;
+                mobileStrip.appendChild(btn);
+            });
+
+            // Switch to the first allowable tab for this role
+            switchTab(tabs[0].id);
+        }
+
+        function switchTab(viewId) {
+            document.querySelectorAll('.tab-view').forEach(view => view.classList.add('hidden'));
+
+            const targetView = document.getElementById(`view-${viewId}`);
+            if (targetView) targetView.classList.remove('hidden');
+
+            // Update desktop active styles
+            document.querySelectorAll('#main-nav-tabs button').forEach(btn => {
+                btn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-all flex items-center space-x-1.5";
+            });
+            const activeDesktopBtn = document.getElementById(`nav-${viewId}`);
+            if (activeDesktopBtn) {
+                activeDesktopBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-md shadow-indigo-600/30 transition-all flex items-center space-x-1.5";
+            }
+
+            // Update mobile active styles
+            document.querySelectorAll('#mobile-nav-strip button').forEach(btn => {
+                btn.className = "px-2 py-1 text-[11px] font-medium text-gray-400 rounded transition-all flex items-center space-x-1";
+            });
+            const activeMobileBtn = document.getElementById(`mobile-nav-${viewId}`);
+            if (activeMobileBtn) {
+                activeMobileBtn.className = "px-2 py-1 text-[11px] font-bold text-indigo-400 rounded transition-all flex items-center space-x-1";
+            }
+
+            // If leaving scanner, stop video feed
+            if (viewId !== 'scanner' && scanner.running) {
+                stopCamera();
+            }
+
+            // Tab-specific refreshes
+            if (viewId === 'scanner') {
+                renderQuickTestButtons();
+            } else if (viewId === 'tickets') {
+                renderRegistryTable();
+            } else if (viewId === 'users') {
+                renderUsersTable();
+            } else if (viewId === 'events-manager') {
+                renderEventsManager();
+            } else if (viewId === 'analytics') {
+                updateStats();
+                renderAuditTable();
+            } else if (viewId === 'issue-tickets') {
+                populateTierDropdowns();
+            }
+        }
+
+        function renderActiveView() {
+            renderQuickTestButtons();
+            renderRegistryTable();
+            populateTierDropdowns();
+            updateStats();
+        }
+
+        /* =========================================================================
+           5. EVENT SWITCHER & MULTI-EVENT SCOPE
+           ========================================================================= */
+        function getActiveEvent() {
+            return eventsState.find(e => e.id === activeEventId) || eventsState[0];
+        }
+
+        function renderEventsDropdown() {
+            const select = document.getElementById('active-event-select');
+            const switcherContainer = document.getElementById('event-switcher-container');
+            if (!select) return;
+
+            select.innerHTML = '';
+
+            let accessibleEvents = eventsState;
+            // If user is EVENT_ADMIN with restricted assignments
+            if (currentUser && currentUser.role === 'EVENT_ADMIN' && currentUser.assignedEventIds && currentUser.assignedEventIds.length) {
+                accessibleEvents = eventsState.filter(e => currentUser.assignedEventIds.includes(e.id));
+            }
+
+            if (accessibleEvents.length === 0) {
+                accessibleEvents = eventsState;
+            }
+
+            accessibleEvents.forEach(evt => {
+                const opt = document.createElement('option');
+                opt.value = evt.id;
+                opt.textContent = `${evt.name} (${evt.code})`;
+                if (evt.id === activeEventId) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            // Update preview and labels
+            populateTierDropdowns();
+        }
+
+        function handleEventSwitch(newEventId) {
+            activeEventId = newEventId;
+            localStorage.setItem('eventshield_active_event_id', activeEventId);
+            notify(`Active Event Switched: ${getActiveEvent().name}`, 'ok');
+            renderRegistryTable();
+            renderQuickTestButtons();
+            populateTierDropdowns();
+            updateStats();
+            if (scanner.running) stopCamera();
+        }
+
+        function populateTierDropdowns() {
+            const curEvent = getActiveEvent();
+            if (!curEvent) return;
+
+            const tiers = curEvent.tiers || ['VIP Pass', 'Standard Pass', 'Speaker'];
+            
+            // Pass issuance tier select
+            const passTierSelect = document.getElementById('pass-tier-select');
+            if (passTierSelect) {
+                passTierSelect.innerHTML = '';
+                tiers.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.textContent = t;
+                    passTierSelect.appendChild(opt);
+                });
+            }
+
+            // Registry tier filter
+            const regFilter = document.getElementById('registry-tier-filter');
+            if (regFilter) {
+                regFilter.innerHTML = '<option value="ALL">All Tiers</option>';
+                tiers.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.textContent = t;
+                    regFilter.appendChild(opt);
+                });
+            }
+        }
+
+        /* =========================================================================
+           6. LOGIN & ROLE SWITCHING ACTIONS
+           ========================================================================= */
+        function openLoginModal() {
+            document.getElementById('login-modal').classList.remove('hidden');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        function setAuthTab(tab) {
+            const staffBtn = document.getElementById('auth-tab-staff');
+            const pinBtn = document.getElementById('auth-tab-pin');
+            const staffForm = document.getElementById('staff-login-form');
+            const pinForm = document.getElementById('pin-login-form');
+
+            if (tab === 'staff') {
+                staffBtn.className = "flex-1 py-1.5 font-semibold rounded-lg bg-indigo-600 text-white";
+                pinBtn.className = "flex-1 py-1.5 font-semibold rounded-lg text-gray-400 hover:text-white";
+                staffForm.classList.remove('hidden');
+                pinForm.classList.add('hidden');
+            } else {
+                pinBtn.className = "flex-1 py-1.5 font-semibold rounded-lg bg-emerald-600 text-white";
+                staffBtn.className = "flex-1 py-1.5 font-semibold rounded-lg text-gray-400 hover:text-white";
+                pinForm.classList.remove('hidden');
+                staffForm.classList.add('hidden');
+            }
+        }
+
+        async function handleStaffLogin(e) {
+            e.preventDefault();
+            const usernameInput = document.getElementById('login-username').value.trim().toLowerCase();
+            const passwordInput = document.getElementById('login-password').value;
+
+            const inputHash = await hashPassword(passwordInput);
+
+            // Find user in usersState
+            const user = usersState.find(u => 
+                (u.username.toLowerCase() === usernameInput || (u.email && u.email.toLowerCase() === usernameInput)) &&
+                u.status === 'ACTIVE'
+            );
+
+            if (!user) {
+                notify("Invalid username/email or account is revoked.", "error");
+                return;
+            }
+
+            if (user.passwordHash !== inputHash) {
+                notify("Incorrect password. Please try again.", "error");
+                return;
+            }
+
+            currentUser = user;
+            localStorage.setItem('eventshield_session_user_id', currentUser.id);
+            updateUserProfileUI();
+            renderNavigation();
+            renderEventsDropdown();
+            closeLoginModal();
+            notify(`Welcome back, ${currentUser.fullName || currentUser.username}!`, 'ok');
+        }
+
+        function handlePinLogin(e) {
+            e.preventDefault();
+            const codeInput = document.getElementById('pin-event-code').value.trim().toUpperCase();
+            const pinInput = document.getElementById('pin-input').value.trim();
+
+            const targetEvent = eventsState.find(ev => ev.code.toUpperCase() === codeInput && ev.status === 'ACTIVE');
+            if (!targetEvent) {
+                notify("Event code not found or event is archived.", "error");
+                return;
+            }
+
+            if (targetEvent.gatePin !== pinInput) {
+                notify("Incorrect Gate PIN. Check event credentials.", "error");
+                return;
+            }
+
+            // Create or switch to gate scanner session bound to this event
+            activeEventId = targetEvent.id;
+            localStorage.setItem('eventshield_active_event_id', activeEventId);
+
+            let scannerUser = usersState.find(u => u.role === 'TICKET_SCANNER');
+            if (!scannerUser) {
+                scannerUser = {
+                    id: 'temp-scanner',
+                    username: 'gate_scanner',
+                    role: 'TICKET_SCANNER',
+                    fullName: `Gate Scanner (${targetEvent.code})`
+                };
+            }
+
+            currentUser = scannerUser;
+            localStorage.setItem('eventshield_session_user_id', currentUser.id);
+            updateUserProfileUI();
+            renderNavigation();
+            renderEventsDropdown();
+            closeLoginModal();
+            notify(`Gate Scanner Unlocked for ${targetEvent.name}!`, 'ok');
+            switchTab('scanner');
+        }
+
+        function quickLoginRole(roleName) {
+            const user = usersState.find(u => u.role === roleName && u.status === 'ACTIVE');
+            if (!user) {
+                notify(`No active user found for role ${roleName}`, "error");
+                return;
+            }
+            currentUser = user;
+            localStorage.setItem('eventshield_session_user_id', currentUser.id);
+            updateUserProfileUI();
+            renderNavigation();
+            renderEventsDropdown();
+            closeLoginModal();
+            notify(`Logged in as ${currentUser.fullName} (${currentUser.role})`, 'ok');
+        }
+
+        /* =========================================================================
+           7. GATEWAY SCANNER & CAMERA QR DECODING ENGINE
+           ========================================================================= */
+        function changeGateStation(newStation) {
+            document.getElementById('scanner-gate-badge').textContent = newStation;
+            notify(`Station set to: ${newStation}`, 'ok', 2000);
+        }
+
+        async function startCamera() {
+            if (scanner.running) return;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                notify(window.isSecureContext ? "No camera available. Use 'Upload Image' instead." : "Camera requires HTTPS or localhost. Use 'Upload Image'.", "error", 7000);
+                return;
+            }
+
+            setCamStatus('amber', 'Starting camera...');
+            let stream = null;
+            let lastErr = null;
+
+            const constraints = [
+                { video: { facingMode: { ideal: scanner.facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                { video: { facingMode: scanner.facingMode }, audio: false },
+                { video: true, audio: false }
+            ];
+
+            for (const c of constraints) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(c);
+                    break;
+                } catch (err) {
+                    lastErr = err;
+                    if (err.name === 'NotAllowedError' || err.name === 'SecurityError') break;
+                }
+            }
+
+            if (!stream) {
+                notify(lastErr?.name === 'NotAllowedError' ? "Camera permission denied in browser." : "Could not open camera. Try image upload.", "error");
+                setCamStatus('amber', 'Camera Offline');
+                return;
+            }
+
+            // Continuous autofocus where supported
+            try {
+                const track = stream.getVideoTracks()[0];
+                const caps = track.getCapabilities ? track.getCapabilities() : {};
+                if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                    await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+                }
+            } catch (e) {}
+
+            const video = document.getElementById('webcam-video');
+            scanner.stream = stream;
+            video.srcObject = stream;
+            video.classList.remove('hidden');
+
+            document.getElementById('camera-start-overlay').classList.add('hidden');
+            document.getElementById('laser-line').classList.remove('hidden');
+            document.getElementById('stop-cam-btn').classList.remove('hidden');
+            document.getElementById('flip-cam-btn').classList.remove('hidden');
+            
+            // Check torch capability
+            try {
+                const track = stream.getVideoTracks()[0];
+                const caps = track.getCapabilities ? track.getCapabilities() : {};
+                if (caps.torch) {
+                    document.getElementById('torch-cam-btn').classList.remove('hidden');
+                }
+            } catch (e) {}
+
+            setCamStatus('emerald', 'Scanning Live...');
+            try { await video.play(); } catch (e) {}
+
+            scanner.running = true;
+            scanner.lastValue = null;
+            scanner.animId = requestAnimationFrame(tickScan);
+        }
+
+        function stopCamera() {
+            scanner.running = false;
+            if (scanner.animId) cancelAnimationFrame(scanner.animId);
+            if (scanner.stream) {
+                scanner.stream.getTracks().forEach(t => t.stop());
+                scanner.stream = null;
+            }
+            const video = document.getElementById('webcam-video');
+            video.srcObject = null;
+            video.classList.add('hidden');
+
+            document.getElementById('camera-start-overlay').classList.remove('hidden');
+            document.getElementById('laser-line').classList.add('hidden');
+            document.getElementById('stop-cam-btn').classList.add('hidden');
+            document.getElementById('flip-cam-btn').classList.add('hidden');
+            document.getElementById('torch-cam-btn').classList.add('hidden');
+
+            setCamStatus('amber', 'Ready');
+        }
+
+        function flipCamera() {
+            scanner.facingMode = scanner.facingMode === 'environment' ? 'user' : 'environment';
+            stopCamera();
+            setTimeout(startCamera, 300);
+        }
+
+        async function toggleTorch() {
+            if (!scanner.stream) return;
+            try {
+                const track = scanner.stream.getVideoTracks()[0];
+                scanner.torchOn = !scanner.torchOn;
+                await track.applyConstraints({ advanced: [{ torch: scanner.torchOn }] });
+                notify(`Flashlight: ${scanner.torchOn ? 'ON' : 'OFF'}`, 'ok', 1500);
+            } catch (e) {
+                notify("Torch control not supported on this camera.", "error");
+            }
+        }
+
+        function setCamStatus(color, text) {
+            const dot = document.getElementById('camera-status-dot');
+            const txt = document.getElementById('camera-status-text');
+            dot.className = `w-2.5 h-2.5 rounded-full bg-${color}-500 ${color === 'emerald' ? 'animate-pulse' : ''}`;
+            txt.textContent = text;
+        }
+
+        // Dual Engine Frame Decoder: BarcodeDetector first, jsQR fallback with center crop
+        async function decodeVideoFrame(video) {
+            if (scanner.detector) {
+                try {
+                    const codes = await scanner.detector.detect(video);
+                    if (codes && codes.length) return codes[0].rawValue;
+                } catch (e) {
+                    scanner.detector = null;
+                }
+            }
+
+            const vw = video.videoWidth, vh = video.videoHeight;
+            let sx = 0, sy = 0, sw = vw, sh = vh;
+
+            if (++scanner.frame % 3 !== 0) {
+                const side = Math.floor(Math.min(vw, vh) * 0.82);
+                sx = (vw - side) >> 1;
+                sy = (vh - side) >> 1;
+                sw = sh = side;
+            }
+
+            const tw = Math.min(sw, 720);
+            const th = Math.round(sh * tw / sw);
+            const canvas = document.getElementById('qr-canvas');
+            if (!scanner.ctx) scanner.ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (canvas.width !== tw || canvas.height !== th) {
+                canvas.width = tw;
+                canvas.height = th;
+            }
+
+            scanner.ctx.drawImage(video, sx, sy, sw, sh, 0, 0, tw, th);
+            const img = scanner.ctx.getImageData(0, 0, tw, th);
+            const code = jsQR(img.data, tw, th, { inversionAttempts: 'attemptBoth' });
+            return code ? code.data : null;
+        }
+
+        async function tickScan(ts) {
+            if (!scanner.running) return;
+            scanner.animId = requestAnimationFrame(tickScan);
+            const video = document.getElementById('webcam-video');
+
+            if (scanner.busy || ts - scanner.lastTick < 80 || video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) {
+                return;
+            }
+
+            scanner.lastTick = ts;
+            scanner.busy = true;
+
+            try {
+                const value = await decodeVideoFrame(video);
+                if (value && scanner.running) {
+                    handleQrDetection(value);
+                }
+            } catch (e) {
+                console.error("Scanner tick error:", e);
+            } finally {
+                scanner.busy = false;
+            }
+        }
+
+        function handleQrDetection(value) {
+            const now = performance.now();
+            const isRepeat = value === scanner.lastValue && (now - scanner.lastSeenAt < 2500);
+            scanner.lastSeenAt = now;
+            if (isRepeat) return;
+
+            scanner.lastValue = value;
+
+            // Flash viewfinder border
+            const frame = document.getElementById('scan-frame');
+            frame.classList.add('scan-hit');
+            setTimeout(() => frame.classList.remove('scan-hit'), 500);
+
+            if (navigator.vibrate) navigator.vibrate(70);
+
+            processScannedToken(value);
+        }
+
+        function handleManualTokenSubmit() {
+            const input = document.getElementById('manual-token-input');
+            const val = input.value.trim();
+            if (!val) return;
+            processScannedToken(val);
+            input.value = '';
+        }
+
+        function handleFileUpload(event) {
+            const input = event.target;
+            const file = input.files[0];
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = async () => {
+                URL.revokeObjectURL(url);
+                const value = await decodeImage(img);
+                input.value = '';
+                if (value) {
+                    processScannedToken(value);
+                } else {
+                    notify("No QR code detected in image. Try a clearer photo.", "error");
+                }
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                input.value = '';
+                notify("Failed to open image file.", "error");
+            };
+            img.src = url;
+        }
+
+        async function decodeImage(img) {
+            if (scanner.detector) {
+                try {
+                    const c = await scanner.detector.detect(img);
+                    if (c && c.length) return c[0].rawValue;
+                } catch (e) {}
+            }
+
+            const longest = Math.max(img.naturalWidth, img.naturalHeight);
+            for (const maxSide of [1600, 900, 500]) {
+                const k = Math.min(1, maxSide / longest);
+                const w = Math.round(img.naturalWidth * k);
+                const h = Math.round(img.naturalHeight * k);
+                const c = document.createElement('canvas');
+                c.width = w; c.height = h;
+                const ctx = c.getContext('2d', { willReadFrequently: true });
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                const d = ctx.getImageData(0, 0, w, h);
+                const code = jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' });
+                if (code) return code.data;
+            }
+            return null;
+        }
+
+        /* =========================================================================
+           8. CORE SINGLE-USE VERIFICATION & DUPLICATE REJECTION ENGINE
+           ========================================================================= */
+        async function processScannedToken(rawTokenInput) {
+            if (!rawTokenInput) return;
+
+            let token = rawTokenInput.trim();
+            if (token.includes('token=')) {
+                token = token.split('token=')[1].split('&')[0];
+            }
+
+            const gateStation = document.getElementById('scanner-station-select')?.value || 'Gate 1';
+            const staffName = currentUser?.fullName || currentUser?.username || 'Staff Scanner';
+            const nowISO = new Date().toISOString();
+            const timeFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            // 1. Lookup ticket in local cache first
+            const ticket = ticketsState.find(t => t.token.toLowerCase() === token.toLowerCase() && t.eventId === activeEventId);
+
+            if (!ticket) {
+                playAudioFeedback('error');
+                recordAuditLog(token, 'Unknown Attendee', 'REJECTED_INVALID', gateStation, staffName, 'Ticket not registered for this event');
+                updateResultCard({
+                    type: 'INVALID',
+                    title: 'Invalid QR Ticket',
+                    subtitle: 'This pass does not exist in this event registry or was revoked.',
+                    badge: 'DENIED: UNKNOWN TICKET',
+                    badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                    iconClass: 'fa-triangle-exclamation text-amber-400',
+                    bgClass: 'border-amber-500/50 bg-amber-950/20'
+                });
+                return;
+            }
+
+            // 2. Anti-Duplicate Check
+            if (ticket.status === 'CHECKED_IN') {
+                duplicateCount++;
+                playAudioFeedback('error');
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+                const prevTime = ticket.scannedAt ? new Date(ticket.scannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Earlier';
+                const prevGate = ticket.scannedGate || 'Gate 1';
+                const prevStaff = ticket.scannedBy || 'Station Staff';
+
+                recordAuditLog(ticket.token, ticket.attendeeName, 'REJECTED_DUPLICATE', gateStation, staffName, `Duplicate scan attempt! Already used at ${prevTime} at ${prevGate}`);
+
+                updateResultCard({
+                    type: 'DUPLICATE',
+                    title: 'ENTRY DENIED: ALREADY SCANNED!',
+                    subtitle: `Duplicate pass detected! This ticket was already validated at ${prevTime}.`,
+                    badge: 'REJECTED: DUPLICATE ENTRY',
+                    badgeClass: 'bg-red-500 text-white font-bold animate-pulse-danger',
+                    iconClass: 'fa-ban text-red-500',
+                    bgClass: 'border-red-600 bg-red-950/40 shadow-2xl shadow-red-950',
+                    details: {
+                        name: ticket.attendeeName,
+                        tier: ticket.tier,
+                        token: ticket.token,
+                        gate: `${prevGate} (By: ${prevStaff})`,
+                        scannedAt: `${prevTime} (ORIGINAL CHECK-IN)`,
+                        scanLabel: 'First Validated At:'
+                    }
+                });
+
+                saveStateToLocal();
+                updateStats();
+                renderQuickTestButtons();
+                return;
+            }
+
+            // 3. Approved First Scan
+            ticket.status = 'CHECKED_IN';
+            ticket.scannedAt = nowISO;
+            ticket.scannedBy = staffName;
+            ticket.scannedGate = gateStation;
+
+            playAudioFeedback('success');
+            if (navigator.vibrate) navigator.vibrate(60);
+
+            recordAuditLog(ticket.token, ticket.attendeeName, 'SUCCESS_CHECKIN', gateStation, staffName, `Entry approved via ${gateStation}`);
+
+            updateResultCard({
+                type: 'SUCCESS',
+                title: `Welcome, ${ticket.attendeeName}!`,
+                subtitle: 'Single-use pass verified. Access Granted.',
+                badge: 'ACCESS APPROVED',
+                badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold',
+                iconClass: 'fa-circle-check text-emerald-400',
+                bgClass: 'border-emerald-500/50 bg-emerald-950/20 shadow-2xl shadow-emerald-950',
+                details: {
+                    name: ticket.attendeeName,
+                    tier: ticket.tier,
+                    token: ticket.token,
+                    gate: gateStation,
+                    scannedAt: `${timeFormatted} (Entry Logged)`,
+                    scanLabel: 'Check-In Timestamp:'
+                }
+            });
+
+            saveStateToLocal();
+            updateStats();
+            renderQuickTestButtons();
+
+            // Push to Supabase if connected
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    await supabaseClient.from('tickets').update({
+                        status: 'CHECKED_IN',
+                        scanned_at: nowISO,
+                        scanned_by: staffName,
+                        scanned_gate: gateStation
+                    }).eq('id', ticket.id);
+                } catch (e) {
+                    console.warn("Failed to push check-in to Supabase, queued for sync:", e);
+                }
+            }
+        }
+
+        function updateResultCard(cfg) {
+            const card = document.getElementById('result-card');
+            const badge = document.getElementById('status-badge');
+            const title = document.getElementById('result-title');
+            const subtitle = document.getElementById('result-subtitle');
+            const icon = document.getElementById('result-icon');
+            const details = document.getElementById('result-details');
+
+            badge.className = `px-3 py-1 text-xs rounded-full border ${cfg.badgeClass}`;
+            badge.textContent = cfg.badge;
+
+            card.className = `glass-panel p-6 rounded-2xl flex flex-col justify-between h-full min-h-[460px] transition-all border-2 ${cfg.bgClass}`;
+            icon.className = `fa-solid ${cfg.iconClass} text-4xl`;
+
+            title.textContent = cfg.title;
+            subtitle.textContent = cfg.subtitle;
+
+            if (cfg.details) {
+                details.classList.remove('hidden');
+                document.getElementById('detail-name').textContent = cfg.details.name;
+                document.getElementById('detail-tier').textContent = cfg.details.tier;
+                document.getElementById('detail-token').textContent = cfg.details.token;
+                document.getElementById('detail-gate').textContent = cfg.details.gate;
+                document.getElementById('detail-scanned-at').textContent = cfg.details.scannedAt;
+                document.getElementById('detail-scan-label').textContent = cfg.details.scanLabel;
+
+                document.getElementById('detail-scanned-at').className = cfg.type === 'DUPLICATE' ? 'font-bold text-red-400' : 'font-bold text-emerald-400';
+            } else {
+                details.classList.add('hidden');
+            }
+        }
+
+        function playAudioFeedback(type) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'success') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.28);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.28);
+                } else {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(160, ctx.currentTime);
+                    osc.frequency.setValueAtTime(110, ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.4);
+                }
+            } catch (e) {}
+        }
+
+        /* =========================================================================
+           9. TICKET ISSUANCE (SINGLE & BULK CSV) & PDF BADGES
+           ========================================================================= */
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        function setIssueMode(mode) {
+            const singleBtn = document.getElementById('btn-issue-single');
+            const bulkBtn = document.getElementById('btn-issue-bulk');
+            const singleForm = document.getElementById('single-pass-form');
+            const bulkForm = document.getElementById('bulk-pass-form');
+
+            if (mode === 'single') {
+                singleBtn.className = "px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600 text-white";
+                bulkBtn.className = "px-3 py-1 text-xs font-semibold rounded-lg text-gray-400 hover:text-white";
+                singleForm.classList.remove('hidden');
+                bulkForm.classList.add('hidden');
+            } else {
+                bulkBtn.className = "px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600 text-white";
+                singleBtn.className = "px-3 py-1 text-xs font-semibold rounded-lg text-gray-400 hover:text-white";
+                bulkForm.classList.remove('hidden');
+                singleForm.classList.add('hidden');
+            }
+        }
+
+        async function handleSinglePassSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('pass-name-input').value.trim();
+            const email = document.getElementById('pass-email-input').value.trim();
+            const tier = document.getElementById('pass-tier-select').value;
+            const staffName = currentUser?.fullName || currentUser?.username || 'Agent';
+
+            const newTicket = {
+                id: generateUUID(),
+                eventId: activeEventId,
+                token: generateUUID(),
+                attendeeName: name,
+                attendeeEmail: email,
+                tier: tier,
+                status: 'VALID',
+                issuedAt: new Date().toISOString(),
+                issuedBy: staffName,
+                scannedAt: null,
+                scannedBy: null,
+                scannedGate: null
+            };
+
+            ticketsState.unshift(newTicket);
+            saveStateToLocal();
+            recordAuditLog(newTicket.token, newTicket.attendeeName, 'TICKET_ISSUED', 'Desk', staffName, `Single pass generated (${tier})`);
+
+            // Reset form
+            document.getElementById('pass-name-input').value = '';
+            document.getElementById('pass-email-input').value = '';
+
+            showActivePreview(newTicket);
+            renderRegistryTable();
+            renderQuickTestButtons();
+            updateStats();
+            notify(`Pass generated for ${newTicket.attendeeName}!`, 'ok');
+
+            // Push to Supabase if connected
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    await supabaseClient.from('tickets').insert([{
+                        id: newTicket.id,
+                        event_id: newTicket.eventId,
+                        token: newTicket.token,
+                        attendee_name: newTicket.attendeeName,
+                        attendee_email: newTicket.attendeeEmail,
+                        tier: newTicket.tier,
+                        status: 'VALID',
+                        issued_by: staffName
+                    }]);
+                } catch (e) {
+                    console.error("Supabase insert error:", e);
+                }
+            }
+        }
+
+        let parsedCsvAttendees = [];
+
+        function handleCsvFileSelected(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            Papa.parse(file, {
+                header: false,
+                skipEmptyLines: true,
+                complete: results => {
+                    processParsedCsvRows(results.data);
+                },
+                error: err => {
+                    notify("Failed to parse CSV file: " + err.message, "error");
+                }
+            });
+        }
+
+        function parseAndPreviewCsv() {
+            const rawText = document.getElementById('csv-paste-area').value.trim();
+            if (!rawText) {
+                notify("Please paste some CSV lines first.", "error");
+                return;
+            }
+
+            const results = Papa.parse(rawText, {
+                skipEmptyLines: true
+            });
+            processParsedCsvRows(results.data);
+        }
+
+        function processParsedCsvRows(rows) {
+            if (!rows || rows.length === 0) {
+                notify("No rows found in CSV.", "error");
+                return;
+            }
+
+            const curEvent = getActiveEvent();
+            const defaultTier = curEvent.tiers?.[0] || 'General Delegate';
+
+            parsedCsvAttendees = [];
+            // Skip header row if it contains 'name'
+            const startIdx = (rows[0][0] && rows[0][0].toLowerCase().includes('name')) ? 1 : 0;
+
+            for (let i = startIdx; i < rows.length; i++) {
+                const r = rows[i];
+                if (!r || !r[0]) continue;
+                const name = r[0].trim();
+                const tier = r[1] ? r[1].trim() : defaultTier;
+                const email = r[2] ? r[2].trim() : '';
+
+                parsedCsvAttendees.push({ name, tier, email });
+            }
+
+            if (parsedCsvAttendees.length === 0) {
+                notify("Could not detect valid attendee names.", "error");
+                return;
+            }
+
+            document.getElementById('csv-preview-count').textContent = `${parsedCsvAttendees.length} Attendees Ready for Import`;
+            const tbody = document.getElementById('csv-preview-tbody');
+            tbody.innerHTML = '';
+
+            parsedCsvAttendees.slice(0, 10).forEach(a => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="p-2 font-semibold text-white">${a.name}</td><td class="p-2 text-indigo-300">${a.tier}</td><td class="p-2 text-gray-400">${a.email || '--'}</td>`;
+                tbody.appendChild(tr);
+            });
+
+            if (parsedCsvAttendees.length > 10) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="3" class="p-2 text-center text-gray-500 font-mono">+ ${parsedCsvAttendees.length - 10} more rows...</td>`;
+                tbody.appendChild(tr);
+            }
+
+            document.getElementById('csv-preview-container').classList.remove('hidden');
+        }
+
+        async function commitBulkImport() {
+            if (parsedCsvAttendees.length === 0) return;
+
+            const staffName = currentUser?.fullName || currentUser?.username || 'Agent';
+            const newTickets = [];
+
+            parsedCsvAttendees.forEach(a => {
+                newTickets.push({
+                    id: generateUUID(),
+                    eventId: activeEventId,
+                    token: generateUUID(),
+                    attendeeName: a.name,
+                    attendeeEmail: a.email,
+                    tier: a.tier,
+                    status: 'VALID',
+                    issuedAt: new Date().toISOString(),
+                    issuedBy: staffName,
+                    scannedAt: null,
+                    scannedBy: null,
+                    scannedGate: null
+                });
+            });
+
+            ticketsState.unshift(...newTickets);
+            saveStateToLocal();
+            recordAuditLog('BULK_IMPORT', 'System Agent', 'TICKETS_BULK_ISSUED', 'Desk', staffName, `Imported ${newTickets.length} tickets via CSV`);
+
+            document.getElementById('csv-preview-container').classList.add('hidden');
+            document.getElementById('csv-paste-area').value = '';
+            parsedCsvAttendees = [];
+
+            renderRegistryTable();
+            renderQuickTestButtons();
+            updateStats();
+            notify(`Successfully issued ${newTickets.length} attendee passes!`, 'ok');
+
+            // Push to Supabase if connected
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    const dbRows = newTickets.map(t => ({
+                        id: t.id,
+                        event_id: t.eventId,
+                        token: t.token,
+                        attendee_name: t.attendeeName,
+                        attendee_email: t.attendeeEmail,
+                        tier: t.tier,
+                        status: 'VALID',
+                        issued_by: staffName
+                    }));
+                    await supabaseClient.from('tickets').insert(dbRows);
+                } catch (e) {
+                    console.error("Bulk Supabase insert error:", e);
+                }
+            }
+        }
+
+        function showActivePreview(t) {
+            activePreviewTicket = t;
+            const box = document.getElementById('ticket-live-preview-box');
+            document.getElementById('preview-card-name').textContent = t.attendeeName;
+            document.getElementById('preview-card-tier').textContent = t.tier;
+            document.getElementById('preview-card-event').textContent = getActiveEvent().name;
+            document.getElementById('preview-card-token').textContent = t.token.substring(0, 18) + '...';
+
+            const qrContainer = document.getElementById('preview-card-qrcode');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: t.token,
+                width: 140,
+                height: 140,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            box.classList.remove('hidden');
+        }
+
+        function downloadActivePreviewPdf() {
+            if (activePreviewTicket) downloadTicketPdf(activePreviewTicket.token);
+        }
+
+        /* =========================================================================
+           10. PDF BADGE GENERATOR (1600x720 Canvas Render)
+           ========================================================================= */
+        function makeQrCanvas(text, px) {
+            const holder = document.createElement('div');
+            holder.style.cssText = 'position:fixed;left:-9999px;top:0;';
+            document.body.appendChild(holder);
+            new QRCode(holder, {
+                text: text,
+                width: px,
+                height: px,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+            const canvas = holder.querySelector('canvas');
+            document.body.removeChild(holder);
+            return canvas;
+        }
+
+        function fitText(ctx, text, maxW, startSize, minSize, weight) {
+            for (let s = startSize; s > minSize; s -= 2) {
+                ctx.font = `${weight} ${s}px Inter, sans-serif`;
+                if (ctx.measureText(text).width <= maxW) return text;
+            }
+            ctx.font = `${weight} ${minSize}px Inter, sans-serif`;
+            while (text.length > 1 && ctx.measureText(text + '…').width > maxW) {
+                text = text.slice(0, -1);
+            }
+            return text + '…';
+        }
+
+        async function buildTicketCanvas(t, evt) {
+            try { await document.fonts.ready; } catch (e) {}
+
+            const W = 1600, H = 720, SPLIT = 1040;
+            const c = document.createElement('canvas');
+            c.width = W; c.height = H;
+            const ctx = c.getContext('2d');
+
+            // White ticket body & stub
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, W, H);
+
+            // Stub background
+            ctx.fillStyle = '#f3f4f9';
+            ctx.fillRect(SPLIT, 0, W - SPLIT, H);
+
+            // Left header strip
+            ctx.fillStyle = '#3730a3'; // Indigo-800
+            ctx.fillRect(0, 0, SPLIT, 140);
+
+            // Header Event Name
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '800 42px Inter, sans-serif';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText(fitText(ctx, evt.name, SPLIT - 240, 42, 26, 800), 60, 88);
+
+            // Admit One Label
+            ctx.textAlign = 'right';
+            ctx.font = '700 24px Inter, sans-serif';
+            ctx.fillStyle = '#c7d2fe';
+            ctx.fillText('OFFICIAL PASS', SPLIT - 60, 88);
+            ctx.textAlign = 'left';
+
+            // Attendee section
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '600 22px Inter, sans-serif';
+            ctx.fillText('ATTENDEE NAME', 60, 230);
+
+            ctx.fillStyle = '#111827';
+            ctx.fillText(fitText(ctx, t.attendeeName, SPLIT - 120, 80, 36, 800), 60, 310);
+
+            // Tier Badge Box
+            ctx.fillStyle = '#4f46e5';
+            ctx.fillText(fitText(ctx, t.tier.toUpperCase(), SPLIT - 120, 32, 20, 700), 60, 370);
+
+            // Ticket Details
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '600 20px Inter, sans-serif';
+            ctx.fillText('DATE & VENUE', 60, 440);
+            ctx.fillStyle = '#111827';
+            ctx.font = '600 24px Inter, sans-serif';
+            ctx.fillText(`${evt.date} &bull; ${evt.location}`, 60, 480);
+
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '600 20px Inter, sans-serif';
+            ctx.fillText('TICKET TOKEN ID', 60, 545);
+            ctx.fillStyle = '#111827';
+            ctx.font = '500 26px monospace';
+            ctx.fillText(t.token, 60, 585);
+
+            // Footer note
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '500 20px Inter, sans-serif';
+            ctx.fillText('Single-use cryptographic pass. Copies or screenshots are flagged as duplicates at gate.', 60, 660);
+
+            // Perforation Line
+            ctx.strokeStyle = '#c7c9d9';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([12, 12]);
+            ctx.beginPath();
+            ctx.moveTo(SPLIT, 20);
+            ctx.lineTo(SPLIT, H - 20);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // QR Code Stub on the Right
+            const box = 460;
+            const bx = SPLIT + (W - SPLIT - box) / 2;
+            const by = 80;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(bx, by, box, box);
+            ctx.strokeStyle = '#e0e2f0';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(bx, by, box, box);
+
+            const qrCanvas = makeQrCanvas(t.token, 540);
+            ctx.drawImage(qrCanvas, bx + 25, by + 25, box - 50, box - 50);
+
+            ctx.fillStyle = '#4338ca';
+            ctx.textAlign = 'center';
+            ctx.font = '700 24px Inter, sans-serif';
+            ctx.fillText('SCAN FOR ENTRY', bx + box / 2, by + box + 55);
+
+            return c;
+        }
+
+        async function downloadTicketPdf(token) {
+            const ticket = ticketsState.find(t => t.token === token);
+            if (!ticket) return;
+
+            const evt = eventsState.find(e => e.id === ticket.eventId) || getActiveEvent();
+            if (!window.jspdf) {
+                notify("PDF library loading. Please check internet connection.", "error");
+                return;
+            }
+
+            try {
+                notify("Generating high-resolution PDF ticket...", "ok", 1500);
+                const canvas = await buildTicketCanvas(ticket, evt);
+                const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: [200, 90] });
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 200, 90);
+                pdf.setProperties({ title: `Ticket - ${ticket.attendeeName}` });
+                const safeName = ticket.attendeeName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+                pdf.save(`Ticket_${safeName}.pdf`);
+                notify("Ticket PDF downloaded successfully!", "ok");
+            } catch (e) {
+                console.error("PDF generation failed:", e);
+                notify("Could not generate PDF.", "error");
+            }
+        }
+
+        /* =========================================================================
+           11. REGISTRY TABLE & AUDIT LOGS RENDERING
+           ========================================================================= */
+        function renderRegistryTable() {
+            const tbody = document.getElementById('registry-tbody');
+            if (!tbody) return;
+
+            const searchVal = (document.getElementById('registry-search')?.value || '').toLowerCase();
+            const tierVal = document.getElementById('registry-tier-filter')?.value || 'ALL';
+
+            const filtered = ticketsState.filter(t => {
+                if (t.eventId !== activeEventId) return false;
+                if (tierVal !== 'ALL' && t.tier !== tierVal) return false;
+                if (searchVal) {
+                    const match = t.attendeeName.toLowerCase().includes(searchVal) ||
+                                  (t.attendeeEmail && t.attendeeEmail.toLowerCase().includes(searchVal)) ||
+                                  t.token.toLowerCase().includes(searchVal);
+                    if (!match) return false;
+                }
+                return true;
+            });
+
+            document.getElementById('registry-count-badge').textContent = `${filtered.length} Passes`;
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500">No passes found matching filters</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-800/40 transition-colors";
+                const isCheckedIn = t.status === 'CHECKED_IN';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3">
+                        <div class="font-semibold text-white">${t.attendeeName}</div>
+                        <div class="text-[10px] text-gray-400">${t.attendeeEmail || 'No email registered'}</div>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${t.tier}</span>
+                    </td>
+                    <td class="py-3 px-3 font-mono text-indigo-300 text-[11px]">
+                        ${t.token.substring(0, 16)}...
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2.5 py-0.5 rounded text-[10px] font-semibold ${
+                            isCheckedIn ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }">
+                            ${isCheckedIn ? 'CHECKED_IN' : 'VALID'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 text-gray-400 text-[11px]">
+                        ${isCheckedIn ? `<div>${new Date(t.scannedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div><div class="text-[10px] text-gray-500">${t.scannedGate || 'Gate'} &bull; ${t.scannedBy || 'Staff'}</div>` : '<span class="text-gray-600">Pending</span>'}
+                    </td>
+                    <td class="py-3 px-3 text-right space-x-1">
+                        <button onclick="openQrModal('${t.token}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-indigo-300 rounded text-[11px] border border-gray-700" title="Inspect QR">
+                            <i class="fa-solid fa-qrcode mr-1"></i> QR
+                        </button>
+                        <button onclick="downloadTicketPdf('${t.token}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-emerald-300 rounded text-[11px] border border-gray-700" title="PDF Ticket">
+                            <i class="fa-solid fa-file-pdf"></i>
+                        </button>
+                        <button onclick="revokeOrDeleteTicket('${t.token}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[11px] border border-red-500/30" title="Revoke Ticket">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderQuickTestButtons() {
+            const container = document.getElementById('quick-test-list');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const currentTickets = ticketsState.filter(t => t.eventId === activeEventId);
+            if (currentTickets.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center py-4 text-xs text-gray-500">No passes issued for this event yet.</div>`;
+                return;
+            }
+
+            currentTickets.slice(0, 8).forEach(t => {
+                const isCheckedIn = t.status === 'CHECKED_IN';
+                const btn = document.createElement('button');
+                btn.onclick = () => processScannedToken(t.token);
+                btn.className = `p-2.5 rounded-xl text-left border transition-all flex items-center justify-between ${
+                    isCheckedIn ? 'bg-red-500/10 border-red-500/20 text-gray-300 hover:bg-red-500/20' : 'bg-gray-900 border-gray-700 text-white hover:border-indigo-500'
+                }`;
+
+                btn.innerHTML = `
+                    <div class="truncate mr-2">
+                        <div class="font-semibold text-xs truncate">${t.attendeeName}</div>
+                        <div class="text-[10px] text-gray-400 font-mono">${t.tier}</div>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded font-medium whitespace-nowrap ${
+                        isCheckedIn ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-300'
+                    }">
+                        ${isCheckedIn ? 'Test Dup Scan' : 'Simulate Scan'}
+                    </span>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function recordAuditLog(token, name, resultType, gate, staffName, notes) {
+            const logEntry = {
+                id: generateUUID(),
+                eventId: activeEventId,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                token: token,
+                attendeeName: name,
+                resultType: resultType,
+                gate: gate || 'Gate 1',
+                staffName: staffName || 'Staff Scanner',
+                notes: notes
+            };
+
+            auditLogsState.unshift(logEntry);
+            saveStateToLocal();
+            renderAuditTable();
+
+            // Push to Supabase if connected
+            if (isSupabaseConnected && supabaseClient) {
+                supabaseClient.from('audit_logs').insert([{
+                    id: logEntry.id,
+                    event_id: logEntry.eventId,
+                    token: logEntry.token,
+                    attendee_name: logEntry.attendeeName,
+                    result_type: logEntry.resultType,
+                    gate: logEntry.gate,
+                    staff_name: logEntry.staffName,
+                    notes: logEntry.notes
+                }]).then(() => {}).catch(e => console.warn(e));
+            }
+        }
+
+        function renderAuditTable() {
+            const tbody = document.getElementById('audit-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const logs = auditLogsState.filter(l => l.eventId === activeEventId);
+            if (logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500">No activity recorded for this event yet</td></tr>`;
+                return;
+            }
+
+            logs.slice(0, 50).forEach(log => {
+                const tr = document.createElement('tr');
+                let badgeClass = 'bg-gray-800 text-gray-300';
+
+                if (log.resultType === 'SUCCESS_CHECKIN') {
+                    badgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                } else if (log.resultType === 'REJECTED_DUPLICATE') {
+                    badgeClass = 'bg-red-500/20 text-red-300 border border-red-500/30 font-bold';
+                } else if (log.resultType === 'REJECTED_INVALID') {
+                    badgeClass = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 font-mono text-gray-400">${log.timestamp}</td>
+                    <td class="py-3 px-3 font-semibold text-white">${log.attendeeName || 'Unknown'}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] ${badgeClass}">${log.resultType}</span></td>
+                    <td class="py-3 px-3 text-gray-300">${log.gate || 'Gate 1'}</td>
+                    <td class="py-3 px-3 text-indigo-300">${log.staffName || 'Staff'}</td>
+                    <td class="py-3 px-3 text-gray-400 text-[11px]">${log.notes || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateStats() {
+            const currentTickets = ticketsState.filter(t => t.eventId === activeEventId);
+            const total = currentTickets.length;
+            const checkedIn = currentTickets.filter(t => t.status === 'CHECKED_IN').length;
+            const pending = total - checkedIn;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-checked-in').textContent = checkedIn;
+            document.getElementById('stat-pending').textContent = pending < 0 ? 0 : pending;
+            document.getElementById('stat-duplicates').textContent = duplicateCount;
+        }
+
+        function exportAuditLogsCsv() {
+            const logs = auditLogsState.filter(l => l.eventId === activeEventId);
+            if (logs.length === 0) {
+                notify("No audit records available to export.", "error");
+                return;
+            }
+
+            let csv = "Timestamp,Attendee Name,Token UUID,Result,Gate,Staff,Notes\n";
+            logs.forEach(l => {
+                csv += `"${l.timestamp}","${l.attendeeName}","${l.token}","${l.resultType}","${l.gate}","${l.staffName}","${l.notes}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `EventShield_Audit_${getActiveEvent().code}_${Date.now()}.csv`;
+            a.click();
+            notify("Audit log CSV exported!", "ok");
+        }
+
+        function clearAuditLogsHistory() {
+            auditLogsState = auditLogsState.filter(l => l.eventId !== activeEventId);
+            saveStateToLocal();
+            renderAuditTable();
+            notify("Audit history cleared for current event.", "ok");
+        }
+
+        function revokeOrDeleteTicket(token) {
+            const idx = ticketsState.findIndex(t => t.token === token);
+            if (idx === -1) return;
+            const t = ticketsState[idx];
+
+            if (!confirm(`Are you sure you want to permanently revoke pass for "${t.attendeeName}"?`)) return;
+
+            ticketsState.splice(idx, 1);
+            saveStateToLocal();
+            recordAuditLog(t.token, t.attendeeName, 'TICKET_REVOKED', 'Desk', currentUser?.username, 'Ticket manually revoked');
+
+            renderRegistryTable();
+            renderQuickTestButtons();
+            updateStats();
+            notify(`Ticket for ${t.attendeeName} removed.`, 'ok');
+
+            if (isSupabaseConnected && supabaseClient) {
+                supabaseClient.from('tickets').delete().eq('id', t.id).then(() => {}).catch(e => console.error(e));
+            }
+        }
+
+        /* =========================================================================
+           12. USER / STAFF MANAGEMENT & PASSWORD RESETS
+           ========================================================================= */
+        function renderUsersTable() {
+            const tbody = document.getElementById('users-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const isMaster = currentUser?.role === 'MASTER_ADMIN';
+            document.getElementById('user-management-title').textContent = isMaster ? 'Global System Staff Directory' : 'Event Staff & Access Management';
+
+            let visibleUsers = usersState;
+            // Event Admins only see staff assigned to their event (and cannot modify master admin)
+            if (!isMaster) {
+                visibleUsers = usersState.filter(u => u.role !== 'MASTER_ADMIN');
+            }
+
+            visibleUsers.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-800/40 transition-colors";
+
+                const assignedNames = (u.assignedEventIds || []).map(id => {
+                    const ev = eventsState.find(e => e.id === id);
+                    return ev ? ev.code : 'All';
+                }).join(', ') || (u.role === 'MASTER_ADMIN' ? 'ALL EVENTS' : 'None');
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3">
+                        <div class="font-semibold text-white">${u.username}</div>
+                        <div class="text-[10px] text-gray-400">${u.fullName || '--'}</div>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-800 text-indigo-300 border border-gray-700">${u.role}</span>
+                    </td>
+                    <td class="py-3 px-3 text-gray-400 text-xs">${u.email || '<span class="text-gray-600 font-mono">None</span>'}</td>
+                    <td class="py-3 px-3 text-xs text-indigo-300 font-mono">${assignedNames}</td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${
+                            u.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        }">${u.status}</span>
+                    </td>
+                    <td class="py-3 px-3 text-right space-x-1.5">
+                        <button onclick="openResetPasswordModal('${u.id}')" class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded text-[11px] border border-amber-500/30" title="Reset Password/PIN">
+                            <i class="fa-solid fa-key mr-1"></i> Reset
+                        </button>
+                        ${u.id !== currentUser.id && u.role !== 'MASTER_ADMIN' ? `
+                            <button onclick="toggleUserStatus('${u.id}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-[11px] border border-gray-700">
+                                ${u.status === 'ACTIVE' ? 'Revoke' : 'Activate'}
+                            </button>
+                        ` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openCreateUserModal() {
+            document.getElementById('user-modal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            document.getElementById('user-modal').classList.add('hidden');
+        }
+
+        async function handleCreateUserSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('modal-user-username').value.trim().toLowerCase();
+            const fullName = document.getElementById('modal-user-fullname').value.trim();
+            const email = document.getElementById('modal-user-email').value.trim();
+            const role = document.getElementById('modal-user-role').value;
+            const password = document.getElementById('modal-user-password').value;
+
+            if (usersState.some(u => u.username.toLowerCase() === username)) {
+                notify("A user with this username already exists.", "error");
+                return;
+            }
+
+            const passwordHash = await hashPassword(password);
+            const newUser = {
+                id: generateUUID(),
+                username: username,
+                fullName: fullName,
+                email: email,
+                role: role,
+                passwordHash: passwordHash,
+                assignedEventIds: [activeEventId],
+                status: 'ACTIVE',
+                createdAt: new Date().toISOString()
+            };
+
+            usersState.push(newUser);
+            saveStateToLocal();
+            closeUserModal();
+            renderUsersTable();
+            notify(`Account "${username}" created successfully!`, 'ok');
+
+            if (isSupabaseConnected && supabaseClient) {
+                supabaseClient.from('app_users').insert([{
+                    id: newUser.id,
+                    username: newUser.username,
+                    email: newUser.email || null,
+                    password_hash: newUser.passwordHash,
+                    role: newUser.role,
+                    assigned_event_ids: newUser.assignedEventIds,
+                    full_name: newUser.fullName,
+                    status: 'ACTIVE'
+                }]).then(() => {}).catch(e => console.error(e));
+            }
+        }
+
+        function openResetPasswordModal(userId) {
+            const user = usersState.find(u => u.id === userId);
+            if (!user) return;
+
+            document.getElementById('reset-pwd-user-id').value = user.id;
+            document.getElementById('reset-pwd-username').textContent = `${user.username} (${user.role})`;
+            document.getElementById('reset-pwd-input').value = '';
+            document.getElementById('reset-pwd-modal').classList.remove('hidden');
+        }
+
+        function closeResetPwdModal() {
+            document.getElementById('reset-pwd-modal').classList.add('hidden');
+        }
+
+        async function handleResetPasswordSubmit(e) {
+            e.preventDefault();
+            const userId = document.getElementById('reset-pwd-user-id').value;
+            const newPassword = document.getElementById('reset-pwd-input').value.trim();
+            if (!newPassword) return;
+
+            const user = usersState.find(u => u.id === userId);
+            if (!user) return;
+
+            user.passwordHash = await hashPassword(newPassword);
+            saveStateToLocal();
+            closeResetPwdModal();
+            notify(`Password/PIN updated immediately for ${user.username}!`, 'ok');
+
+            if (isSupabaseConnected && supabaseClient) {
+                supabaseClient.from('app_users').update({ password_hash: user.passwordHash }).eq('id', user.id).then(() => {}).catch(e => console.error(e));
+            }
+        }
+
+        function toggleUserStatus(userId) {
+            const user = usersState.find(u => u.id === userId);
+            if (!user) return;
+            user.status = user.status === 'ACTIVE' ? 'REVOKED' : 'ACTIVE';
+            saveStateToLocal();
+            renderUsersTable();
+            notify(`User ${user.username} is now ${user.status}.`, 'ok');
+
+            if (isSupabaseConnected && supabaseClient) {
+                supabaseClient.from('app_users').update({ status: user.status }).eq('id', user.id).then(() => {}).catch(e => console.error(e));
+            }
+        }
+
+        /* =========================================================================
+           13. MASTER ADMIN EVENTS MANAGER
+           ========================================================================= */
+        function renderEventsManager() {
+            const grid = document.getElementById('events-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            eventsState.forEach(ev => {
+                const count = ticketsState.filter(t => t.eventId === ev.id).length;
+                const card = document.createElement('div');
+                card.className = `glass-panel p-5 rounded-2xl space-y-4 border ${ev.id === activeEventId ? 'border-indigo-500 shadow-lg shadow-indigo-600/20' : 'border-gray-800'}`;
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300">${ev.code}</span>
+                            <h3 class="text-base font-bold text-white mt-1.5">${ev.name}</h3>
+                            <p class="text-xs text-gray-400 mt-0.5"><i class="fa-solid fa-location-dot mr-1 text-indigo-400"></i> ${ev.location}</p>
+                        </div>
+                        <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${ev.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gray-800 text-gray-500'}">
+                            ${ev.status}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs bg-gray-900/60 p-2.5 rounded-xl border border-gray-800">
+                        <div>
+                            <span class="text-gray-500 text-[10px] uppercase">Gate PIN:</span>
+                            <div class="font-mono text-indigo-300 font-bold">${ev.gatePin}</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-[10px] uppercase">Issued Passes:</span>
+                            <div class="font-bold text-white">${count}</div>
+                        </div>
+                    </div>
+
+                    <div class="text-[11px] text-gray-400 truncate">
+                        <span class="text-gray-500">Tiers:</span> ${(ev.tiers || []).join(', ')}
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                        <button onclick="handleEventSwitch('${ev.id}')" class="px-3 py-1.5 ${ev.id === activeEventId ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'} rounded-lg text-xs font-semibold">
+                            ${ev.id === activeEventId ? 'Active Event' : 'Select Event'}
+                        </button>
+                        <button onclick="toggleEventArchive('${ev.id}')" class="text-xs text-gray-400 hover:text-red-400">
+                            ${ev.status === 'ACTIVE' ? 'Archive' : 'Activate'}
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openCreateEventModal() {
+            document.getElementById('event-modal').classList.remove('hidden');
+        }
+
+        function closeCreateEventModal() {
+            document.getElementById('event-modal').classList.add('hidden');
+        }
+
+        async function handleCreateEventSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('event-name-input').value.trim();
+            const code = document.getElementById('event-code-input').value.trim().toUpperCase();
+            const pin = document.getElementById('event-pin-input').value.trim();
+            const date = document.getElementById('event-date-input').value || '2026-11-20';
+            const location = document.getElementById('event-location-input').value.trim() || 'Exhibition Center';
+            const tiersRaw = document.getElementById('event-tiers-input').value;
+            const tiers = tiersRaw.split(',').map(t => t.trim()).filter(Boolean);
+
+            if (eventsState.some(ev => ev.code.toUpperCase() === code)) {
+                notify("An event with this code already exists.", "error");
+                return;
+            }
+
+            const newEvent = {
+                id: generateUUID(),
+                name: name,
+                code: code,
+                date: date,
+                location: location,
+                gatePin: pin,
+                tiers: tiers.length ? tiers : ['VIP', 'General'],
+                status: 'ACTIVE',
+                createdAt: new Date().toISOString()
+            };
+
+            eventsState.push(newEvent);
+            saveStateToLocal();
+            closeCreateEventModal();
+            renderEventsDropdown();
+            renderEventsManager();
+            notify(`New event "${name}" created successfully!`, 'ok');
+
+            if (isSupabaseConnected && supabaseClient) {
+                supabaseClient.from('events').insert([{
+                    id: newEvent.id,
+                    name: newEvent.name,
+                    code: newEvent.code,
+                    date: newEvent.date,
+                    location: newEvent.location,
+                    gate_pin: newEvent.gatePin,
+                    tiers: newEvent.tiers,
+                    status: 'ACTIVE'
+                }]).then(() => {}).catch(e => console.error(e));
+            }
+        }
+
+        function toggleEventArchive(eventId) {
+            const ev = eventsState.find(e => e.id === eventId);
+            if (!ev) return;
+            ev.status = ev.status === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE';
+            saveStateToLocal();
+            renderEventsDropdown();
+            renderEventsManager();
+            notify(`Event ${ev.name} is now ${ev.status}.`, 'ok');
+
+            if (isSupabaseConnected && supabaseClient) {
+                supabaseClient.from('events').update({ status: ev.status }).eq('id', ev.id).then(() => {}).catch(e => console.error(e));
+            }
+        }
+
+        /* =========================================================================
+           14. QR INSPECT MODAL ACTIONS
+           ========================================================================= */
+        function openQrModal(token) {
+            const ticket = ticketsState.find(t => t.token === token);
+            if (!ticket) return;
+
+            activeModalTicket = ticket;
+            document.getElementById('modal-qr-name').textContent = ticket.attendeeName;
+            document.getElementById('modal-qr-tier').textContent = ticket.tier;
+            document.getElementById('modal-qr-token').textContent = ticket.token;
+
+            const qrContainer = document.getElementById('modal-qrcode-container');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: ticket.token,
+                width: 220,
+                height: 220,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            document.getElementById('qr-modal').classList.remove('hidden');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qr-modal').classList.add('hidden');
+            activeModalTicket = null;
+        }
+
+        function triggerModalQuickScan() {
+            if (activeModalTicket) {
+                const tok = activeModalTicket.token;
+                closeQrModal();
+                switchTab('scanner');
+                processScannedToken(tok);
+            }
+        }
+
+        function downloadActiveModalPdf() {
+            if (activeModalTicket) downloadTicketPdf(activeModalTicket.token);
+        }
+
+        /* =========================================================================
+           15. CLOUD DATABASE MODAL ACTIONS & SQL SCHEMA COPY
+           ========================================================================= */
+        function openDatabaseModal() {
+            document.getElementById('sb-url-input').value = localStorage.getItem('eventshield_sb_url') || APP_CONFIG.supabaseUrl || '';
+            document.getElementById('sb-key-input').value = localStorage.getItem('eventshield_sb_key') || APP_CONFIG.supabaseAnonKey || '';
+            document.getElementById('database-modal').classList.remove('hidden');
+        }
+
+        function closeDatabaseModal() {
+            document.getElementById('database-modal').classList.add('hidden');
+        }
+
+        async function saveSupabaseConfig() {
+            const url = document.getElementById('sb-url-input').value.trim();
+            const key = document.getElementById('sb-key-input').value.trim();
+
+            if (!url || !key) {
+                notify("Please enter both Supabase URL and Anon Key.", "error");
+                return;
+            }
+
+            try {
+                notify("Testing connection to Supabase...", "ok", 1500);
+                const testClient = window.supabase.createClient(url, key);
+                const { error } = await testClient.from('events').select('id').limit(1);
+
+                if (error) {
+                    notify("Connection failed. Did you run the SQL schema script in Supabase first?", "error", 6000);
+                    return;
+                }
+
+                localStorage.setItem('eventshield_sb_url', url);
+                localStorage.setItem('eventshield_sb_key', key);
+                localStorage.setItem('eventshield_mode', 'SUPABASE');
+
+                supabaseClient = testClient;
+                isSupabaseConnected = true;
+                setConnectionBadge(true);
+                setupRealtimeSubscriptions();
+                await syncFromSupabase();
+
+                closeDatabaseModal();
+                notify("Successfully connected to Supabase Live Database!", "ok");
+            } catch (e) {
+                notify("Failed to connect: " + e.message, "error");
+            }
+        }
+
+        function toggleDemoMode() {
+            const curMode = localStorage.getItem('eventshield_mode') || 'DEMO';
+            if (curMode === 'SUPABASE') {
+                localStorage.setItem('eventshield_mode', 'DEMO');
+                isSupabaseConnected = false;
+                setConnectionBadge(false);
+                notify("Switched to Local Demo Mode.", "ok");
+            } else {
+                localStorage.setItem('eventshield_mode', 'SUPABASE');
+                initSupabaseClient();
+            }
+            closeDatabaseModal();
+        }
+
+        function copySqlSchemaToClipboard() {
+            const schemaSql = `-- EventShield QR - Supabase Free Tier Schema
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS public.events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    date TEXT NOT NULL,
+    location TEXT NOT NULL,
+    gate_pin TEXT NOT NULL DEFAULT '1234',
+    tiers JSONB NOT NULL DEFAULT '["VIP General Access", "Standard Pass", "Speaker / Backstage"]'::jsonb,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username TEXT UNIQUE NOT NULL,
+    email TEXT,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('MASTER_ADMIN', 'EVENT_ADMIN', 'TICKETING_AGENT', 'TICKET_SCANNER')),
+    assigned_event_ids JSONB DEFAULT '[]'::jsonb,
+    full_name TEXT,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.tickets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    attendee_name TEXT NOT NULL,
+    attendee_email TEXT,
+    tier TEXT NOT NULL DEFAULT 'Standard Pass',
+    status TEXT NOT NULL DEFAULT 'VALID' CHECK (status IN ('VALID', 'CHECKED_IN', 'REVOKED')),
+    issued_at TIMESTAMPTZ DEFAULT NOW(),
+    issued_by TEXT DEFAULT 'System',
+    scanned_at TIMESTAMPTZ,
+    scanned_by TEXT,
+    scanned_gate TEXT,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+    token TEXT,
+    attendee_name TEXT,
+    result_type TEXT NOT NULL,
+    notes TEXT,
+    gate TEXT DEFAULT 'Gate 1',
+    staff_name TEXT DEFAULT 'Staff Scanner',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tickets_token ON public.tickets(token);
+CREATE INDEX IF NOT EXISTS idx_tickets_event_id ON public.tickets(event_id);
+CREATE INDEX IF NOT EXISTS idx_events_code ON public.events(code);
+
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public all events" ON public.events FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all users" ON public.app_users FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all tickets" ON public.tickets FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.tickets;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;`;
+
+            navigator.clipboard.writeText(schemaSql).then(() => {
+                notify("SQL Schema copied to clipboard! Paste it into Supabase SQL Editor.", "ok", 4000);
+            }).catch(() => {
+                notify("Could not copy automatically. Check schema.sql in project folder.", "error");
+            });
+        }
+
+        function notify(msg, type = 'error', ms = 4000) {
+            const el = document.getElementById('toast');
+            if (!el) return;
+            const styles = {
+                error: 'bg-red-950/95 text-red-200 border-red-500/40 shadow-red-950/50',
+                ok: 'bg-emerald-950/95 text-emerald-200 border-emerald-500/40 shadow-emerald-950/50'
+            };
+            el.className = `fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] max-w-sm w-[90%] px-4 py-2.5 rounded-xl text-xs text-center border backdrop-blur-md shadow-2xl transition-all ${styles[type] || styles.error}`;
+            el.textContent = msg;
+            clearTimeout(notify.timer);
+            notify.timer = setTimeout(() => el.classList.add('hidden'), ms);
+        }
+    </script>
+</body>
+</html>

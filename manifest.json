@@ -1,0 +1,20 @@
+{
+  "name": "EventShield QR - Enterprise Ticketing & Scanner",
+  "short_name": "EventShield",
+  "description": "Multi-role event e-ticketing platform with instant anti-duplicate camera verification and offline sync.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080c16",
+  "theme_color": "#080c16",
+  "categories": ["business", "events", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

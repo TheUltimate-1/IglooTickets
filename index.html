@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EventShield QR - Enterprise Event Ticketing & Mobile Scanner</title>
     
+    <!-- PWA & Mobile Web App Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#080c16">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="EventShield">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 6 -->
@@ -145,6 +154,13 @@
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                                 <span id="header-mode-text">Demo Mode</span>
                             </span>
+                            <!-- Live Venue Occupancy Headcount Badge -->
+                            <div id="header-headcount-badge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-gray-800 bg-gray-900/90 text-[10px] font-medium" title="Live Venue Occupancy Headcount">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" id="header-headcount-dot"></span>
+                                <span class="text-gray-400">Inside:</span>
+                                <span id="header-headcount-val" class="font-mono text-white font-bold">0 / 500</span>
+                                <span id="header-headcount-pct" class="text-emerald-400 font-bold">0%</span>
+                            </div>
                         </div>
                         
                         <!-- Event Switcher (Shown for Master Admin and Event Admin) -->
@@ -202,7 +218,7 @@
         <!-- VIEW 1: GATEWAY SCANNER (TICKET_SCANNER, EVENT_ADMIN, MASTER_ADMIN) -->
         <!-- ===================================================================== -->
         <section id="view-scanner" class="tab-view space-y-6 hidden">
-            <!-- Top Controls: Station Gate Selector & Sync Status -->
+            <!-- Top Controls: Station Gate Selector, Mode Toggle & Sync Status -->
             <div class="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center space-x-3">
                     <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
@@ -217,6 +233,16 @@
                     </div>
                 </div>
 
+                <!-- Center: Entrance vs Exit (Pass-Out) Mode Switch -->
+                <div class="flex items-center bg-gray-900/90 p-1 rounded-xl border border-gray-800">
+                    <button id="scan-mode-entrance-btn" onclick="setScanMode('ENTRANCE')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white transition-all flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i> Entrance (Check-In)
+                    </button>
+                    <button id="scan-mode-exit-btn" onclick="setScanMode('EXIT')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i> Exit (Pass-Out)
+                    </button>
+                </div>
+
                 <div class="flex items-center space-x-2">
                     <label class="text-xs text-gray-400 font-medium">Station:</label>
                     <select id="scanner-station-select" onchange="changeGateStation(this.value)" class="bg-gray-900 border border-gray-700 text-white rounded-lg px-2.5 py-1 text-xs focus:ring-1 focus:ring-indigo-500">
@@ -228,9 +254,42 @@
                     </select>
 
                     <div id="scanner-sync-status" class="px-2.5 py-1 rounded-lg text-xs font-medium border bg-emerald-500/10 text-emerald-300 border-emerald-500/30 flex items-center gap-1.5" title="Real-time check-in sync">
-                        <i class="fa-solid fa-circle text-[8px] text-emerald-400"></i>
+                        <i class="fa-solid fa-circle text-[8px] text-emerald-400" id="scanner-sync-dot"></i>
                         <span id="scanner-sync-text">Live Sync</span>
+                        <button id="scanner-sync-btn" onclick="triggerManualSync()" class="hidden ml-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-[10px] font-bold" title="Sync Offline Scans to Cloud">
+                            <i class="fa-solid fa-rotate"></i> Sync (<span id="queued-sync-count">0</span>)
+                        </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Live Venue Capacity Headcount Meter Bar -->
+            <div class="glass-panel p-4 rounded-2xl border border-gray-800/80 bg-gray-950/40 space-y-2.5">
+                <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <i class="fa-solid fa-users text-xs"></i>
+                        </span>
+                        <div>
+                            <span class="font-bold text-white">Live Venue Headcount</span>
+                            <span id="meter-status-tag" class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">🟢 Normal Flow</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-gray-400">Inside Venue: </span>
+                        <span id="meter-occupancy-val" class="font-mono font-bold text-white text-sm">0</span>
+                        <span class="text-gray-500"> / </span>
+                        <span id="meter-capacity-val" class="text-gray-400 font-mono">500</span>
+                        <span id="meter-pct-val" class="ml-1.5 text-xs font-bold text-emerald-400 font-mono">(0%)</span>
+                    </div>
+                </div>
+                <!-- Capacity Progress Bar -->
+                <div class="w-full bg-gray-900 rounded-full h-2.5 overflow-hidden border border-gray-800">
+                    <div id="meter-progress-bar" class="bg-gradient-to-r from-emerald-500 to-indigo-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between items-center text-[10px] text-gray-400 pt-0.5">
+                    <span>Inside: <strong id="meter-total-in" class="text-emerald-400">0</strong> &bull; Pass-Out (Outside): <strong id="meter-total-out" class="text-amber-400">0</strong></span>
+                    <span id="meter-remaining-tag">Available Space: <strong id="meter-remaining-val" class="text-indigo-300">500</strong></span>
                 </div>
             </div>
 
@@ -1066,9 +1125,14 @@
                         <input type="date" id="event-date-input" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Location</label>
-                        <input type="text" id="event-location-input" placeholder="Convention Hall" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Max Venue Capacity</label>
+                        <input type="number" id="event-capacity-input" min="10" max="500000" value="500" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Location</label>
+                    <input type="text" id="event-location-input" placeholder="Convention Hall" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
                 </div>
 
                 <div>
@@ -1078,6 +1142,67 @@
 
                 <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 mt-2">
                     <i class="fa-solid fa-plus"></i> Save & Launch Event
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 5B: 1-CLICK CLONE EVENT MODAL (MASTER_ADMIN) -->
+    <!-- ========================================================================= -->
+    <div id="clone-event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+            <button onclick="closeCloneEventModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-base"></i>
+            </button>
+
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-copy text-indigo-400"></i> 1-Click Clone Event
+            </h3>
+            <p class="text-xs text-gray-400">Duplicate this event's structure, ticket tiers, gate PIN, and capacity into a new event.</p>
+
+            <form onsubmit="handleCloneEventSubmit(event)" class="space-y-3">
+                <input type="hidden" id="clone-source-event-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">New Event Name *</label>
+                    <input type="text" id="clone-name-input" required class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">New Event Code *</label>
+                        <input type="text" id="clone-code-input" required class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono uppercase placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Gate PIN *</label>
+                        <input type="text" id="clone-pin-input" required class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Date</label>
+                        <input type="date" id="clone-date-input" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Max Capacity</label>
+                        <input type="number" id="clone-capacity-input" min="10" max="500000" value="500" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Location</label>
+                    <input type="text" id="clone-location-input" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Ticket Tiers (Inherited)</label>
+                    <input type="text" id="clone-tiers-input" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 mt-2">
+                    <i class="fa-solid fa-copy"></i> Confirm & Duplicate Event
                 </button>
             </form>
         </div>
@@ -1142,6 +1267,20 @@
         // Offline queued scans to flush when reconnected
         let offlineScanQueue = [];
 
+        // Scanner Operational Mode: 'ENTRANCE' (Check-In) or 'EXIT' (Pass-Out)
+        let currentScannerMode = 'ENTRANCE';
+
+        // IndexedDB Offline Cache Engine
+        const IDB_NAME = 'EventShieldDB';
+        const IDB_VERSION = 1;
+        let dbInstance = null;
+
+        // Rate-Limiting & Security Throttling
+        let manualLookupAttempts = 0;
+        let manualLookupLockedUntil = 0;
+        let pinLoginAttempts = 0;
+        let pinLoginLockedUntil = 0;
+
         // Scanner State
         const scanner = {
             running: false,
@@ -1174,7 +1313,10 @@
            2. INITIALIZATION ON LOAD
            ========================================================================= */
         window.addEventListener('DOMContentLoaded', async () => {
+            initPWA();
             initStorageAndData();
+            await initIndexedDB();
+            setupOnlineOfflineListeners();
             await initSupabaseClient();
             initSession();
             renderNavigation();
@@ -1182,6 +1324,259 @@
             renderActiveView();
             updateStats();
         });
+
+        /* Progressive Web App Registration */
+        function initPWA() {
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => {
+                            console.log('[PWA] Service Worker registered with scope:', reg.scope);
+                        })
+                        .catch(err => {
+                            console.warn('[PWA] Service Worker registration failed:', err);
+                        });
+                });
+            }
+        }
+
+        /* IndexedDB Offline Cache Engine */
+        function initIndexedDB() {
+            return new Promise((resolve) => {
+                if (!('indexedDB' in window)) {
+                    console.warn("IndexedDB not supported in this environment.");
+                    return resolve(null);
+                }
+                try {
+                    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('tickets_cache')) {
+                            const tStore = db.createObjectStore('tickets_cache', { keyPath: 'id' });
+                            tStore.createIndex('token', 'token', { unique: false });
+                            tStore.createIndex('eventId', 'eventId', { unique: false });
+                        }
+                        if (!db.objectStoreNames.contains('offline_scans')) {
+                            db.createObjectStore('offline_scans', { keyPath: 'id', autoIncrement: true });
+                        }
+                    };
+                    req.onsuccess = (e) => {
+                        dbInstance = e.target.result;
+                        updateOfflineQueueCount();
+                        resolve(dbInstance);
+                    };
+                    req.onerror = (e) => {
+                        console.warn("IndexedDB open error:", e);
+                        resolve(null);
+                    };
+                } catch (err) {
+                    console.warn("IndexedDB exception:", err);
+                    resolve(null);
+                }
+            });
+        }
+
+        async function preCacheEventTickets(tickets) {
+            if (!dbInstance || !tickets || !tickets.length) return;
+            try {
+                const tx = dbInstance.transaction('tickets_cache', 'readwrite');
+                const store = tx.objectStore('tickets_cache');
+                tickets.forEach(ticket => {
+                    store.put(ticket);
+                });
+            } catch (e) {
+                console.warn("IndexedDB cache error:", e);
+            }
+        }
+
+        async function queueOfflineScan(scanRecord) {
+            if (!dbInstance) {
+                offlineScanQueue.push(scanRecord);
+                localStorage.setItem('eventshield_offline_queue', JSON.stringify(offlineScanQueue));
+                updateOfflineQueueCount();
+                return;
+            }
+            try {
+                const tx = dbInstance.transaction('offline_scans', 'readwrite');
+                tx.objectStore('offline_scans').add(scanRecord);
+                tx.oncomplete = () => {
+                    updateOfflineQueueCount();
+                };
+            } catch (e) {
+                console.warn("Error queuing offline scan:", e);
+            }
+        }
+
+        async function getQueuedScans() {
+            if (!dbInstance) {
+                try {
+                    return JSON.parse(localStorage.getItem('eventshield_offline_queue') || '[]');
+                } catch (e) { return []; }
+            }
+            return new Promise((resolve) => {
+                try {
+                    const tx = dbInstance.transaction('offline_scans', 'readonly');
+                    const req = tx.objectStore('offline_scans').getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => resolve([]);
+                } catch (e) {
+                    resolve([]);
+                }
+            });
+        }
+
+        async function clearQueuedScans() {
+            if (!dbInstance) {
+                offlineScanQueue = [];
+                localStorage.removeItem('eventshield_offline_queue');
+                updateOfflineQueueCount();
+                return;
+            }
+            try {
+                const tx = dbInstance.transaction('offline_scans', 'readwrite');
+                tx.objectStore('offline_scans').clear();
+                tx.oncomplete = () => {
+                    updateOfflineQueueCount();
+                };
+            } catch (e) {
+                console.warn("Failed to clear queued scans:", e);
+            }
+        }
+
+        async function updateOfflineQueueCount() {
+            const queue = await getQueuedScans();
+            const count = queue.length;
+            const btn = document.getElementById('scanner-sync-btn');
+            const badge = document.getElementById('queued-sync-count');
+            const syncDot = document.getElementById('scanner-sync-dot');
+            const syncText = document.getElementById('scanner-sync-text');
+            const syncStatus = document.getElementById('scanner-sync-status');
+
+            if (badge) badge.textContent = count;
+
+            if (!navigator.onLine) {
+                if (syncStatus) syncStatus.className = 'px-2.5 py-1 rounded-lg text-xs font-medium border bg-amber-500/10 text-amber-300 border-amber-500/30 flex items-center gap-1.5';
+                if (syncDot) syncDot.className = 'fa-solid fa-circle text-[8px] text-amber-400';
+                if (syncText) syncText.textContent = `Offline (${count} queued)`;
+                if (btn) btn.classList.remove('hidden');
+            } else {
+                if (count > 0) {
+                    if (syncStatus) syncStatus.className = 'px-2.5 py-1 rounded-lg text-xs font-medium border bg-amber-500/10 text-amber-300 border-amber-500/30 flex items-center gap-1.5';
+                    if (syncDot) syncDot.className = 'fa-solid fa-circle text-[8px] text-amber-400';
+                    if (syncText) syncText.textContent = `${count} Queued Scans`;
+                    if (btn) btn.classList.remove('hidden');
+                } else {
+                    if (syncStatus) syncStatus.className = 'px-2.5 py-1 rounded-lg text-xs font-medium border bg-emerald-500/10 text-emerald-300 border-emerald-500/30 flex items-center gap-1.5';
+                    if (syncDot) syncDot.className = 'fa-solid fa-circle text-[8px] text-emerald-400';
+                    if (syncText) syncText.textContent = isSupabaseConnected ? 'Live Sync' : 'Demo Local';
+                    if (btn) btn.classList.add('hidden');
+                }
+            }
+        }
+
+        function setupOnlineOfflineListeners() {
+            window.addEventListener('online', async () => {
+                notify("Internet connection restored! Auto-syncing queued scans...", "ok");
+                updateOfflineQueueCount();
+                await syncOfflineQueue();
+            });
+
+            window.addEventListener('offline', () => {
+                notify("Device is now OFFLINE. Offline pre-cache active; scans will queue for sync.", "info");
+                updateOfflineQueueCount();
+            });
+        }
+
+        async function triggerManualSync() {
+            if (!navigator.onLine) {
+                notify("Device is currently offline. Connect to Wi-Fi/mobile network to sync.", "error");
+                return;
+            }
+            notify("Syncing queued scans to cloud...", "info");
+            await syncOfflineQueue();
+        }
+
+        async function syncOfflineQueue() {
+            const queue = await getQueuedScans();
+            if (!queue || queue.length === 0) {
+                notify("All scans are up to date with cloud.", "info");
+                return;
+            }
+            if (!supabaseClient || !isSupabaseConnected) {
+                notify("Supabase not connected. Connect cloud database to sync.", "error");
+                return;
+            }
+
+            let syncedCount = 0;
+            for (const item of queue) {
+                try {
+                    if (item.action === 'CHECK_IN') {
+                        const { error } = await supabaseClient.rpc('check_in_ticket_rpc', {
+                            p_event_id: item.eventId,
+                            p_token: item.token,
+                            p_gate: item.gateStation,
+                            p_scanner_user: item.staffName
+                        });
+                        if (error) {
+                            await supabaseClient.from('tickets').update({
+                                status: 'CHECKED_IN',
+                                scanned_at: item.timestamp,
+                                scanned_by: item.staffName,
+                                scanned_gate: item.gateStation
+                            }).eq('token', item.token);
+                        }
+                    } else if (item.action === 'PASS_OUT') {
+                        const { error } = await supabaseClient.rpc('pass_out_ticket_rpc', {
+                            p_event_id: item.eventId,
+                            p_token: item.token,
+                            p_gate: item.gateStation,
+                            p_scanner_user: item.staffName
+                        });
+                        if (error) {
+                            await supabaseClient.from('tickets').update({
+                                status: 'CHECKED_OUT',
+                                passed_out_at: item.timestamp,
+                                pass_out_gate: item.gateStation
+                            }).eq('token', item.token);
+                        }
+                    }
+                    syncedCount++;
+                } catch (e) {
+                    console.warn("Failed to sync item:", item, e);
+                }
+            }
+
+            await clearQueuedScans();
+            await syncFromSupabase();
+            updateStats();
+            notify(`Synced ${syncedCount} queued scan(s) to cloud!`, "ok");
+        }
+
+        /* Pass-Out / Re-Entry Mode Toggle */
+        function setScanMode(mode) {
+            currentScannerMode = mode;
+            const entranceBtn = document.getElementById('scan-mode-entrance-btn');
+            const exitBtn = document.getElementById('scan-mode-exit-btn');
+            const laser = document.getElementById('laser-line');
+
+            if (mode === 'EXIT') {
+                if (entranceBtn) entranceBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition-all flex items-center gap-1.5';
+                if (exitBtn) exitBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 text-white transition-all flex items-center gap-1.5 shadow-sm';
+                if (laser) {
+                    laser.style.background = 'linear-gradient(90deg, transparent, #f59e0b, #fbbf24, #f59e0b, transparent)';
+                    laser.style.boxShadow = '0 0 16px #f59e0b, 0 0 24px #fbbf24';
+                }
+                notify("Scanner set to EXIT MODE (Logging Pass-Outs)", "info");
+            } else {
+                if (entranceBtn) entranceBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white transition-all flex items-center gap-1.5 shadow-sm';
+                if (exitBtn) exitBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition-all flex items-center gap-1.5';
+                if (laser) {
+                    laser.style.background = 'linear-gradient(90deg, transparent, #22c55e, #4ade80, #22c55e, transparent)';
+                    laser.style.boxShadow = '0 0 16px #22c55e, 0 0 24px #4ade80';
+                }
+                notify("Scanner set to ENTRANCE MODE (Validating Check-Ins)", "info");
+            }
+        }
 
         function initStorageAndData() {
             try {
@@ -1410,6 +1805,7 @@
                         location: e.location,
                         gatePin: e.gate_pin,
                         tiers: e.tiers || [],
+                        capacity: e.capacity || 500,
                         status: e.status
                     }));
                 }
@@ -1418,6 +1814,7 @@
                 const { data: tickets } = await supabaseClient.from('tickets').select('*');
                 if (tickets && tickets.length) {
                     ticketsState = tickets.map(mapDbTicketToState);
+                    preCacheEventTickets(ticketsState);
                 }
 
                 // Sync Staff & Users
@@ -1475,7 +1872,10 @@
                 issuedBy: t.issued_by,
                 scannedAt: t.scanned_at,
                 scannedBy: t.scanned_by,
-                scannedGate: t.scanned_gate
+                scannedGate: t.scanned_gate,
+                passedOutAt: t.passed_out_at,
+                passOutGate: t.pass_out_gate,
+                reEntryCount: t.re_entry_count || 0
             };
         }
 
@@ -1769,6 +2169,13 @@
 
         function handlePinLogin(e) {
             e.preventDefault();
+            const now = Date.now();
+            if (now < pinLoginLockedUntil) {
+                const secs = Math.ceil((pinLoginLockedUntil - now) / 1000);
+                notify(`Too many failed attempts. PIN login locked for ${secs}s.`, "error");
+                return;
+            }
+
             const codeInput = document.getElementById('pin-event-code').value.trim().toUpperCase();
             const pinInput = document.getElementById('pin-input').value.trim();
 
@@ -1779,9 +2186,18 @@
             }
 
             if (targetEvent.gatePin !== pinInput) {
-                notify("Incorrect Gate PIN. Check event credentials.", "error");
+                pinLoginAttempts++;
+                if (pinLoginAttempts >= 4) {
+                    pinLoginLockedUntil = now + 6000;
+                    pinLoginAttempts = 0;
+                    notify("Too many invalid PIN attempts! Locked for 6 seconds.", "error");
+                } else {
+                    notify(`Incorrect Gate PIN. Check event credentials (${4 - pinLoginAttempts} tries left).`, "error");
+                }
                 return;
             }
+
+            pinLoginAttempts = 0;
 
             // Create or switch to gate scanner session bound to this event
             activeEventId = targetEvent.id;
@@ -2023,11 +2439,26 @@
         }
 
         function handleManualTokenSubmit() {
+            const now = Date.now();
+            if (now < manualLookupLockedUntil) {
+                const secsLeft = Math.ceil((manualLookupLockedUntil - now) / 1000);
+                notify(`Manual search rate-limited for security. Please wait ${secsLeft}s.`, "error");
+                return;
+            }
+
             const input = document.getElementById('manual-token-input');
-            const val = input.value.trim();
+            const val = input ? input.value.trim() : '';
             if (!val) return;
+
+            manualLookupAttempts++;
+            if (manualLookupAttempts >= 5) {
+                manualLookupLockedUntil = now + 5000;
+                manualLookupAttempts = 0;
+                notify("Multiple manual lookups detected. Throttled for 5 seconds.", "error");
+            }
+
             processScannedToken(val);
-            input.value = '';
+            if (input) input.value = '';
         }
 
         function handleFileUpload(event) {
@@ -2082,7 +2513,7 @@
         }
 
         /* =========================================================================
-           8. CORE SINGLE-USE VERIFICATION & DUPLICATE REJECTION ENGINE
+           8. CORE VERIFICATION, PASS-OUT & RE-ENTRY ENGINE
            ========================================================================= */
         async function processScannedToken(rawTokenInput) {
             if (!rawTokenInput) return;
@@ -2115,7 +2546,192 @@
                 return;
             }
 
-            // 2. Anti-Duplicate Check
+            // Revoked check
+            if (ticket.status === 'REVOKED') {
+                playAudioFeedback('error');
+                recordAuditLog(ticket.token, ticket.attendeeName, 'REJECTED_INVALID', gateStation, staffName, 'Ticket has been revoked');
+                updateResultCard({
+                    type: 'INVALID',
+                    title: 'TICKET REVOKED',
+                    subtitle: 'This ticket was invalidated by event administration.',
+                    badge: 'DENIED: REVOKED PASS',
+                    badgeClass: 'bg-red-500 text-white font-bold',
+                    iconClass: 'fa-ban text-red-500',
+                    bgClass: 'border-red-600 bg-red-950/40'
+                });
+                return;
+            }
+
+            // -------------------------------------------------------------
+            // A. PASS-OUT / EXIT MODE
+            // -------------------------------------------------------------
+            if (currentScannerMode === 'EXIT') {
+                if (ticket.status === 'CHECKED_OUT') {
+                    playAudioFeedback('error');
+                    recordAuditLog(ticket.token, ticket.attendeeName, 'REJECTED_INVALID', gateStation, staffName, 'Attendee already exited venue');
+                    const exitTime = ticket.passedOutAt ? new Date(ticket.passedOutAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Earlier';
+                    updateResultCard({
+                        type: 'WARNING',
+                        title: 'ALREADY EXITED VENUE',
+                        subtitle: `Attendee ${ticket.attendeeName} already logged pass-out at ${exitTime}.`,
+                        badge: 'ALREADY LOGGED OUT',
+                        badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold',
+                        iconClass: 'fa-triangle-exclamation text-amber-400',
+                        bgClass: 'border-amber-500/50 bg-amber-950/20',
+                        details: {
+                            name: ticket.attendeeName,
+                            tier: ticket.tier,
+                            token: ticket.token,
+                            gate: ticket.passOutGate || gateStation,
+                            scannedAt: `${exitTime} (PREVIOUS EXIT)`,
+                            scanLabel: 'Pass-Out Log:'
+                        }
+                    });
+                    return;
+                }
+
+                if (ticket.status !== 'CHECKED_IN') {
+                    playAudioFeedback('error');
+                    recordAuditLog(ticket.token, ticket.attendeeName, 'REJECTED_INVALID', gateStation, staffName, 'Cannot exit: Ticket has not checked in yet');
+                    updateResultCard({
+                        type: 'INVALID',
+                        title: 'CANNOT LOG PASS-OUT',
+                        subtitle: 'This attendee has not checked into the venue yet.',
+                        badge: 'DENIED: NOT CHECKED IN',
+                        badgeClass: 'bg-red-500/20 text-red-300 border-red-500/40 font-bold',
+                        iconClass: 'fa-circle-xmark text-red-400',
+                        bgClass: 'border-red-500/50 bg-red-950/20'
+                    });
+                    return;
+                }
+
+                // Approve Pass-Out!
+                ticket.status = 'CHECKED_OUT';
+                ticket.passedOutAt = nowISO;
+                ticket.passOutGate = gateStation;
+
+                playAudioFeedback('success');
+                if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
+
+                recordAuditLog(ticket.token, ticket.attendeeName, 'PASS_OUT', gateStation, staffName, `Pass-out / exit approved via ${gateStation}`);
+
+                updateResultCard({
+                    type: 'SUCCESS',
+                    title: `Pass-Out: See you soon, ${ticket.attendeeName}!`,
+                    subtitle: 'Exit logged. Re-entry will be permitted with this QR pass.',
+                    badge: 'PASS-OUT APPROVED (EXIT LOGGED)',
+                    badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold',
+                    iconClass: 'fa-arrow-right-from-bracket text-amber-400',
+                    bgClass: 'border-amber-500/50 bg-amber-950/30 shadow-2xl shadow-amber-950',
+                    details: {
+                        name: ticket.attendeeName,
+                        tier: ticket.tier,
+                        token: ticket.token,
+                        gate: gateStation,
+                        scannedAt: `${timeFormatted} (Exit Timestamp)`,
+                        scanLabel: 'Pass-Out Logged:'
+                    }
+                });
+
+                saveStateToLocal();
+                updateStats();
+                renderQuickTestButtons();
+                preCacheEventTickets(ticketsState);
+
+                // Push to Supabase or queue offline
+                if (isSupabaseConnected && supabaseClient && navigator.onLine) {
+                    try {
+                        const { error } = await supabaseClient.rpc('pass_out_ticket_rpc', {
+                            p_event_id: activeEventId,
+                            p_token: ticket.token,
+                            p_gate: gateStation,
+                            p_scanner_user: staffName
+                        });
+                        if (error) {
+                            await supabaseClient.from('tickets').update({
+                                status: 'CHECKED_OUT',
+                                passed_out_at: nowISO,
+                                pass_out_gate: gateStation
+                            }).eq('id', ticket.id);
+                        }
+                    } catch (e) {
+                        console.warn("Pass-out sync failed, queued offline:", e);
+                        queueOfflineScan({ action: 'PASS_OUT', eventId: activeEventId, token: ticket.token, gateStation, staffName, timestamp: nowISO });
+                    }
+                } else {
+                    queueOfflineScan({ action: 'PASS_OUT', eventId: activeEventId, token: ticket.token, gateStation, staffName, timestamp: nowISO });
+                }
+                return;
+            }
+
+            // -------------------------------------------------------------
+            // B. ENTRANCE MODE: RE-ENTRY VERIFICATION
+            // -------------------------------------------------------------
+            if (ticket.status === 'CHECKED_OUT') {
+                ticket.status = 'CHECKED_IN';
+                ticket.reEntryCount = (ticket.reEntryCount || 0) + 1;
+                ticket.scannedAt = nowISO;
+                ticket.scannedBy = staffName;
+                ticket.scannedGate = gateStation;
+
+                playAudioFeedback('success');
+                if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+
+                recordAuditLog(ticket.token, ticket.attendeeName, 'SUCCESS_REENTRY', gateStation, staffName, `Re-entry approved via ${gateStation} (Re-entry #${ticket.reEntryCount})`);
+
+                updateResultCard({
+                    type: 'SUCCESS',
+                    title: `Welcome Back, ${ticket.attendeeName}!`,
+                    subtitle: `Re-entry #${ticket.reEntryCount} verified. Access granted.`,
+                    badge: 'RE-ENTRY APPROVED',
+                    badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 font-bold',
+                    iconClass: 'fa-rotate-right text-indigo-400',
+                    bgClass: 'border-indigo-500/50 bg-indigo-950/30 shadow-2xl shadow-indigo-950',
+                    details: {
+                        name: ticket.attendeeName,
+                        tier: ticket.tier,
+                        token: ticket.token,
+                        gate: gateStation,
+                        scannedAt: `${timeFormatted} (Re-Entry Timestamp)`,
+                        scanLabel: 'Re-Entry Logged:'
+                    }
+                });
+
+                saveStateToLocal();
+                updateStats();
+                renderQuickTestButtons();
+                preCacheEventTickets(ticketsState);
+
+                if (isSupabaseConnected && supabaseClient && navigator.onLine) {
+                    try {
+                        const { error } = await supabaseClient.rpc('check_in_ticket_rpc', {
+                            p_event_id: activeEventId,
+                            p_token: ticket.token,
+                            p_gate: gateStation,
+                            p_scanner_user: staffName
+                        });
+                        if (error) {
+                            await supabaseClient.from('tickets').update({
+                                status: 'CHECKED_IN',
+                                scanned_at: nowISO,
+                                scanned_by: staffName,
+                                scanned_gate: gateStation,
+                                re_entry_count: ticket.reEntryCount
+                            }).eq('id', ticket.id);
+                        }
+                    } catch (e) {
+                        console.warn("Re-entry sync failed, queued offline:", e);
+                        queueOfflineScan({ action: 'CHECK_IN', eventId: activeEventId, token: ticket.token, gateStation, staffName, timestamp: nowISO });
+                    }
+                } else {
+                    queueOfflineScan({ action: 'CHECK_IN', eventId: activeEventId, token: ticket.token, gateStation, staffName, timestamp: nowISO });
+                }
+                return;
+            }
+
+            // -------------------------------------------------------------
+            // C. ENTRANCE MODE: ANTI-DUPLICATE CHECK
+            // -------------------------------------------------------------
             if (ticket.status === 'CHECKED_IN') {
                 duplicateCount++;
                 playAudioFeedback('error');
@@ -2151,7 +2767,9 @@
                 return;
             }
 
-            // 3. Approved First Scan
+            // -------------------------------------------------------------
+            // D. ENTRANCE MODE: APPROVED FIRST SCAN
+            // -------------------------------------------------------------
             ticket.status = 'CHECKED_IN';
             ticket.scannedAt = nowISO;
             ticket.scannedBy = staffName;
@@ -2183,66 +2801,85 @@
             saveStateToLocal();
             updateStats();
             renderQuickTestButtons();
+            preCacheEventTickets(ticketsState);
 
-            // Push to Supabase if connected with strict atomic status check
-            if (isSupabaseConnected && supabaseClient) {
+            // Push to Supabase via RPC with graceful fallback & offline queue
+            if (isSupabaseConnected && supabaseClient && navigator.onLine) {
                 try {
-                    const { data: updatedRows, error } = await supabaseClient
-                        .from('tickets')
-                        .update({
-                            status: 'CHECKED_IN',
-                            scanned_at: nowISO,
-                            scanned_by: staffName,
-                            scanned_gate: gateStation
-                        })
-                        .eq('id', ticket.id)
-                        .eq('status', 'VALID')
-                        .select();
+                    const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('check_in_ticket_rpc', {
+                        p_event_id: activeEventId,
+                        p_token: ticket.token,
+                        p_gate: gateStation,
+                        p_scanner_user: staffName
+                    });
 
-                    // If zero rows updated, another gate scanned this ticket concurrently!
-                    if (!error && updatedRows && updatedRows.length === 0) {
-                        const { data: latest } = await supabaseClient.from('tickets').select('*').eq('id', ticket.id).single();
-                        const firstScanTime = latest && latest.scanned_at ? new Date(latest.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Earlier';
-                        const firstGate = latest?.scanned_gate || 'Another Gate';
-                        const firstStaff = latest?.scanned_by || 'Staff';
+                    if (rpcErr) {
+                        // Fallback to table atomic update
+                        const { data: updatedRows, error: updateErr } = await supabaseClient
+                            .from('tickets')
+                            .update({
+                                status: 'CHECKED_IN',
+                                scanned_at: nowISO,
+                                scanned_by: staffName,
+                                scanned_gate: gateStation
+                            })
+                            .eq('id', ticket.id)
+                            .eq('status', 'VALID')
+                            .select();
 
-                        ticket.status = 'CHECKED_IN';
-                        ticket.scannedAt = latest?.scanned_at || nowISO;
-                        ticket.scannedGate = firstGate;
-                        ticket.scannedBy = firstStaff;
-                        duplicateCount++;
-                        saveStateToLocal();
-                        updateStats();
-                        renderQuickTestButtons();
-
-                        playAudioFeedback('error');
-                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-
-                        recordAuditLog(ticket.token, ticket.attendeeName, 'REJECTED_DUPLICATE', gateStation, staffName, `Concurrent scan blocked! Already checked in at ${firstScanTime} at ${firstGate}`);
-
-                        updateResultCard({
-                            type: 'DUPLICATE',
-                            title: 'ENTRY DENIED: CONCURRENT SCAN!',
-                            subtitle: `Duplicate pass detected! Validated a moment ago at ${firstGate}.`,
-                            badge: 'REJECTED: DUPLICATE ENTRY',
-                            badgeClass: 'bg-red-500 text-white font-bold animate-pulse-danger',
-                            iconClass: 'fa-ban text-red-500',
-                            bgClass: 'border-red-600 bg-red-950/40 shadow-2xl shadow-red-950',
-                            details: {
-                                name: ticket.attendeeName,
-                                tier: ticket.tier,
-                                token: ticket.token,
-                                gate: `${firstGate} (By: ${firstStaff})`,
-                                scannedAt: `${firstScanTime} (EARLIER ENTRY)`,
-                                scanLabel: 'First Validated At:'
-                            }
-                        });
+                        if (!updateErr && updatedRows && updatedRows.length === 0) {
+                            handleConcurrentScanBlocked(ticket, gateStation, staffName, nowISO);
+                            return;
+                        }
+                    } else if (rpcRes && !rpcRes.success && rpcRes.reason === 'DUPLICATE') {
+                        handleConcurrentScanBlocked(ticket, gateStation, staffName, nowISO, rpcRes);
                         return;
                     }
                 } catch (e) {
-                    console.warn("Failed to push check-in to Supabase, queued for sync:", e);
+                    console.warn("Check-in push failed, queued offline:", e);
+                    queueOfflineScan({ action: 'CHECK_IN', eventId: activeEventId, token: ticket.token, gateStation, staffName, timestamp: nowISO });
                 }
+            } else {
+                queueOfflineScan({ action: 'CHECK_IN', eventId: activeEventId, token: ticket.token, gateStation, staffName, timestamp: nowISO });
             }
+        }
+
+        function handleConcurrentScanBlocked(ticket, gateStation, staffName, nowISO, rpcRes = null) {
+            const firstScanTime = rpcRes?.scanned_at ? new Date(rpcRes.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Earlier';
+            const firstGate = rpcRes?.scanned_gate || 'Another Gate';
+            const firstStaff = rpcRes?.scanned_by || 'Staff';
+
+            ticket.status = 'CHECKED_IN';
+            ticket.scannedAt = rpcRes?.scanned_at || nowISO;
+            ticket.scannedGate = firstGate;
+            ticket.scannedBy = firstStaff;
+            duplicateCount++;
+            saveStateToLocal();
+            updateStats();
+            renderQuickTestButtons();
+
+            playAudioFeedback('error');
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+            recordAuditLog(ticket.token, ticket.attendeeName, 'REJECTED_DUPLICATE', gateStation, staffName, `Concurrent scan blocked! Already checked in at ${firstScanTime} at ${firstGate}`);
+
+            updateResultCard({
+                type: 'DUPLICATE',
+                title: 'ENTRY DENIED: CONCURRENT SCAN!',
+                subtitle: `Duplicate pass detected! Validated a moment ago at ${firstGate}.`,
+                badge: 'REJECTED: DUPLICATE ENTRY',
+                badgeClass: 'bg-red-500 text-white font-bold animate-pulse-danger',
+                iconClass: 'fa-ban text-red-500',
+                bgClass: 'border-red-600 bg-red-950/40 shadow-2xl shadow-red-950',
+                details: {
+                    name: ticket.attendeeName,
+                    tier: ticket.tier,
+                    token: ticket.token,
+                    gate: `${firstGate} (By: ${firstStaff})`,
+                    scannedAt: `${firstScanTime} (EARLIER ENTRY)`,
+                    scanLabel: 'First Validated At:'
+                }
+            });
         }
 
         function updateResultCard(cfg) {
@@ -2862,6 +3499,10 @@
 
                 if (log.resultType === 'SUCCESS_CHECKIN') {
                     badgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                } else if (log.resultType === 'SUCCESS_REENTRY') {
+                    badgeClass = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold';
+                } else if (log.resultType === 'PASS_OUT') {
+                    badgeClass = 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold';
                 } else if (log.resultType === 'REJECTED_DUPLICATE') {
                     badgeClass = 'bg-red-500/20 text-red-300 border border-red-500/30 font-bold';
                 } else if (log.resultType === 'REJECTED_INVALID') {
@@ -2884,12 +3525,84 @@
             const currentTickets = ticketsState.filter(t => t.eventId === activeEventId);
             const total = currentTickets.length;
             const checkedIn = currentTickets.filter(t => t.status === 'CHECKED_IN').length;
-            const pending = total - checkedIn;
+            const pending = currentTickets.filter(t => t.status === 'VALID').length;
 
-            document.getElementById('stat-total').textContent = total;
-            document.getElementById('stat-checked-in').textContent = checkedIn;
-            document.getElementById('stat-pending').textContent = pending < 0 ? 0 : pending;
-            document.getElementById('stat-duplicates').textContent = duplicateCount;
+            const statTotal = document.getElementById('stat-total');
+            const statCheckedIn = document.getElementById('stat-checked-in');
+            const statPending = document.getElementById('stat-pending');
+            const statDuplicates = document.getElementById('stat-duplicates');
+
+            if (statTotal) statTotal.textContent = total;
+            if (statCheckedIn) statCheckedIn.textContent = checkedIn;
+            if (statPending) statPending.textContent = pending < 0 ? 0 : pending;
+            if (statDuplicates) statDuplicates.textContent = duplicateCount;
+
+            updateCapacityMeter();
+            updateOfflineQueueCount();
+        }
+
+        function updateCapacityMeter() {
+            const ev = getActiveEvent();
+            const capacity = ev?.capacity || 500;
+            const currentTickets = ticketsState.filter(t => t.eventId === activeEventId);
+            
+            const insideVenue = currentTickets.filter(t => t.status === 'CHECKED_IN').length;
+            const passedOut = currentTickets.filter(t => t.status === 'CHECKED_OUT').length;
+            const pct = Math.min(100, Math.round((insideVenue / capacity) * 100));
+            const available = Math.max(0, capacity - insideVenue);
+
+            // 1. Top Navbar Headcount Badge
+            const headerVal = document.getElementById('header-headcount-val');
+            const headerPct = document.getElementById('header-headcount-pct');
+            const headerDot = document.getElementById('header-headcount-dot');
+            if (headerVal) headerVal.textContent = `${insideVenue} / ${capacity}`;
+            if (headerPct) headerPct.textContent = `${pct}%`;
+            if (headerDot) {
+                if (pct >= 95) headerDot.className = 'w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse';
+                else if (pct >= 80) headerDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400';
+                else headerDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+            }
+
+            // 2. Scanner View Capacity Gauge
+            const meterOcc = document.getElementById('meter-occupancy-val');
+            const meterCap = document.getElementById('meter-capacity-val');
+            const meterPct = document.getElementById('meter-pct-val');
+            const meterBar = document.getElementById('meter-progress-bar');
+            const meterTag = document.getElementById('meter-status-tag');
+            const meterTotalIn = document.getElementById('meter-total-in');
+            const meterTotalOut = document.getElementById('meter-total-out');
+            const meterRemaining = document.getElementById('meter-remaining-val');
+
+            if (meterOcc) meterOcc.textContent = insideVenue;
+            if (meterCap) meterCap.textContent = capacity;
+            if (meterPct) meterPct.textContent = `(${pct}%)`;
+            if (meterTotalIn) meterTotalIn.textContent = insideVenue;
+            if (meterTotalOut) meterTotalOut.textContent = passedOut;
+            if (meterRemaining) meterRemaining.textContent = available;
+
+            if (meterBar) {
+                meterBar.style.width = `${pct}%`;
+                if (pct >= 95) {
+                    meterBar.className = 'bg-gradient-to-r from-amber-500 to-red-500 h-2.5 rounded-full transition-all duration-500';
+                } else if (pct >= 80) {
+                    meterBar.className = 'bg-gradient-to-r from-emerald-500 to-amber-500 h-2.5 rounded-full transition-all duration-500';
+                } else {
+                    meterBar.className = 'bg-gradient-to-r from-emerald-500 to-indigo-500 h-2.5 rounded-full transition-all duration-500';
+                }
+            }
+
+            if (meterTag) {
+                if (pct >= 100) {
+                    meterTag.className = 'ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse';
+                    meterTag.textContent = '⛔ AT FULL CAPACITY';
+                } else if (pct >= 85) {
+                    meterTag.className = 'ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+                    meterTag.textContent = '⚠️ NEAR CAPACITY';
+                } else {
+                    meterTag.className = 'ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                    meterTag.textContent = '🟢 Normal Flow';
+                }
+            }
         }
 
         function exportAuditLogsCsv() {
@@ -3122,14 +3835,18 @@
                         </span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 text-xs bg-gray-900/60 p-2.5 rounded-xl border border-gray-800">
+                    <div class="grid grid-cols-3 gap-2 text-xs bg-gray-900/60 p-2.5 rounded-xl border border-gray-800">
                         <div>
                             <span class="text-gray-500 text-[10px] uppercase">Gate PIN:</span>
                             <div class="font-mono text-indigo-300 font-bold">${escapeHtml(ev.gatePin)}</div>
                         </div>
                         <div>
-                            <span class="text-gray-500 text-[10px] uppercase">Issued Passes:</span>
-                            <div class="font-bold text-white">${count}</div>
+                            <span class="text-gray-500 text-[10px] uppercase">Capacity:</span>
+                            <div class="font-bold text-white font-mono">${ev.capacity || 500}</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-[10px] uppercase">Passes:</span>
+                            <div class="font-bold text-emerald-400 font-mono">${count}</div>
                         </div>
                     </div>
 
@@ -3137,11 +3854,14 @@
                         <span class="text-gray-500">Tiers:</span> ${escapeHtml((ev.tiers || []).join(', '))}
                     </div>
 
-                    <div class="flex items-center justify-between pt-2 border-t border-gray-800">
-                        <button onclick="handleEventSwitch('${encodeURIComponent(ev.id)}')" class="px-3 py-1.5 ${ev.id === activeEventId ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'} rounded-lg text-xs font-semibold">
-                            ${ev.id === activeEventId ? 'Active Event' : 'Select Event'}
+                    <div class="flex items-center justify-between pt-2 border-t border-gray-800 gap-1.5 flex-wrap">
+                        <button onclick="handleEventSwitch('${encodeURIComponent(ev.id)}')" class="px-2.5 py-1.5 ${ev.id === activeEventId ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'} rounded-lg text-xs font-semibold">
+                            ${ev.id === activeEventId ? 'Active Event' : 'Select'}
                         </button>
-                        <button onclick="toggleEventArchive('${encodeURIComponent(ev.id)}')" class="text-xs text-gray-400 hover:text-red-400">
+                        <button onclick="openCloneEventModal('${encodeURIComponent(ev.id)}')" class="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-indigo-300 hover:text-white rounded-lg text-xs font-medium flex items-center gap-1" title="1-Click Clone Event">
+                            <i class="fa-solid fa-copy"></i> Clone
+                        </button>
+                        <button onclick="toggleEventArchive('${encodeURIComponent(ev.id)}')" class="text-xs text-gray-400 hover:text-red-400 px-2 py-1">
                             ${ev.status === 'ACTIVE' ? 'Archive' : 'Activate'}
                         </button>
                     </div>
@@ -3164,6 +3884,7 @@
             const code = document.getElementById('event-code-input').value.trim().toUpperCase();
             const pin = document.getElementById('event-pin-input').value.trim();
             const date = document.getElementById('event-date-input').value || '2026-11-20';
+            const capacity = parseInt(document.getElementById('event-capacity-input')?.value, 10) || 500;
             const location = document.getElementById('event-location-input').value.trim() || 'Exhibition Center';
             const tiersRaw = document.getElementById('event-tiers-input').value;
             const tiers = tiersRaw.split(',').map(t => t.trim()).filter(Boolean);
@@ -3181,6 +3902,7 @@
                 location: location,
                 gatePin: pin,
                 tiers: tiers.length ? tiers : ['VIP', 'General'],
+                capacity: capacity,
                 status: 'ACTIVE',
                 createdAt: new Date().toISOString()
             };
@@ -3190,10 +3912,11 @@
             closeCreateEventModal();
             renderEventsDropdown();
             renderEventsManager();
+            updateStats();
             notify(`New event "${name}" created successfully!`, 'ok');
 
             if (isSupabaseConnected && supabaseClient) {
-                supabaseClient.from('events').insert([{
+                supabaseClient.from('events').insert({
                     id: newEvent.id,
                     name: newEvent.name,
                     code: newEvent.code,
@@ -3201,9 +3924,112 @@
                     location: newEvent.location,
                     gate_pin: newEvent.gatePin,
                     tiers: newEvent.tiers,
+                    capacity: newEvent.capacity,
                     status: 'ACTIVE'
-                }]).then(() => {}).catch(e => console.error(e));
+                }).then(() => {}).catch(err => console.error("Error pushing event to Supabase:", err));
             }
+        }
+
+        /* 1-Click Clone Event Methods */
+        function openCloneEventModal(eventId) {
+            const ev = eventsState.find(e => e.id === decodeURIComponent(eventId));
+            if (!ev) {
+                notify("Event not found.", "error");
+                return;
+            }
+
+            document.getElementById('clone-source-event-id').value = ev.id;
+            document.getElementById('clone-name-input').value = `${ev.name} (Copy)`;
+            document.getElementById('clone-code-input').value = `${ev.code}_C`.slice(0, 12).toUpperCase();
+            document.getElementById('clone-pin-input').value = ev.gatePin || '1234';
+            document.getElementById('clone-date-input').value = ev.date || new Date().toISOString().split('T')[0];
+            document.getElementById('clone-capacity-input').value = ev.capacity || 500;
+            document.getElementById('clone-location-input').value = ev.location || '';
+            document.getElementById('clone-tiers-input').value = (ev.tiers || []).join(', ');
+
+            document.getElementById('clone-event-modal').classList.remove('hidden');
+        }
+
+        function closeCloneEventModal() {
+            document.getElementById('clone-event-modal').classList.add('hidden');
+        }
+
+        async function handleCloneEventSubmit(e) {
+            e.preventDefault();
+            const sourceId = document.getElementById('clone-source-event-id').value;
+            const name = document.getElementById('clone-name-input').value.trim();
+            const code = document.getElementById('clone-code-input').value.trim().toUpperCase();
+            const pin = document.getElementById('clone-pin-input').value.trim();
+            const date = document.getElementById('clone-date-input').value || new Date().toISOString().split('T')[0];
+            const capacity = parseInt(document.getElementById('clone-capacity-input').value, 10) || 500;
+            const location = document.getElementById('clone-location-input').value.trim() || 'Venue Center';
+            const tiersRaw = document.getElementById('clone-tiers-input').value;
+            const tiers = tiersRaw.split(',').map(t => t.trim()).filter(Boolean);
+
+            if (eventsState.some(ev => ev.code.toUpperCase() === code)) {
+                notify("An event with this code already exists. Please choose a unique code.", "error");
+                return;
+            }
+
+            const newEvent = {
+                id: generateUUID(),
+                name,
+                code,
+                date,
+                location,
+                gatePin: pin,
+                tiers: tiers.length ? tiers : ['VIP General', 'Standard Pass'],
+                capacity,
+                status: 'ACTIVE',
+                createdAt: new Date().toISOString()
+            };
+
+            eventsState.push(newEvent);
+
+            if (currentUser && currentUser.assignedEventIds && !currentUser.assignedEventIds.includes(newEvent.id)) {
+                currentUser.assignedEventIds.push(newEvent.id);
+            }
+
+            saveStateToLocal();
+
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('clone_event_rpc', {
+                        p_source_event_id: sourceId,
+                        p_new_name: name,
+                        p_new_code: code,
+                        p_new_date: date,
+                        p_new_location: location,
+                        p_creator_user_id: (currentUser?.id && currentUser.id.length === 36) ? currentUser.id : null
+                    });
+
+                    if (rpcErr || !rpcRes?.success) {
+                        await supabaseClient.from('events').insert({
+                            id: newEvent.id,
+                            name: newEvent.name,
+                            code: newEvent.code,
+                            date: newEvent.date,
+                            location: newEvent.location,
+                            gate_pin: newEvent.gatePin,
+                            tiers: newEvent.tiers,
+                            capacity: newEvent.capacity,
+                            status: 'ACTIVE'
+                        });
+                    } else if (rpcRes?.id) {
+                        newEvent.id = rpcRes.id;
+                    }
+                } catch (err) {
+                    console.warn("Error cloning to Supabase:", err);
+                }
+            }
+
+            closeCloneEventModal();
+            activeEventId = newEvent.id;
+            localStorage.setItem('eventshield_active_event_id', activeEventId);
+            renderEventsDropdown();
+            renderEventsManager();
+            updateStats();
+            notify(`Event cloned successfully! Created "${newEvent.name}".`, "ok");
         }
 
         function toggleEventArchive(eventId) {

@@ -1,6 +1,6 @@
 # EventShield QR Enterprise &bull; Modern Event E-Ticketing System
 
-A full-featured, zero-cost event e-ticketing and access control platform with cryptographic single-use QR codes, multi-role staff authentication, mobile camera scanning, bulk CSV imports, canvas-rendered PDF ticket generation, and real-time cloud database synchronization.
+A full-featured, zero-cost event e-ticketing and access control platform with cryptographic single-use QR codes, multi-role staff authentication, mobile camera scanning, bulk CSV imports, canvas-rendered PDF ticket generation, real-time cloud database synchronization, and progressive web app (PWA) offline scanning.
 
 ---
 
@@ -18,18 +18,53 @@ No installation or server setup is required to start exploring.
 
 ---
 
+## ✨ What's New in v2.6.0
+
+### 1. 🛡️ Security & Database Hardening
+* **PostgreSQL RPC Functions**: Atomic validation and check-in procedures (`check_in_ticket_rpc`, `pass_out_ticket_rpc`, `clone_event_rpc`) execute server-side in a single transaction, locking down direct client manipulation of tickets.
+* **Anti-Brute-Force Rate Limiting**: Automatic lockout cooldowns on repeated failed gate PIN inputs or rapid manual token searches.
+
+### 2. ⚡ 1-Click Event Cloning
+* Master Admins can duplicate any existing event with one click.
+* Inherits custom ticket tiers, gate PIN, and venue capacity while assigning a new name, unique event code, and date.
+
+### 3. 👥 Live Venue Capacity Headcount Meter
+* Real-time headcount progress bar tracking:
+  $$\text{Current Occupancy} = \text{Total Checked-In} - \text{Total Passed-Out}$$
+* Displayed in both the top navigation bar and the gateway scanner station with visual safety alerts (🟢 Normal Flow, ⚠️ Near Capacity, ⛔ Full Capacity).
+
+### 4. 🔄 Pass-Out & Re-Entry Tracking
+* **Entrance Mode**: Checks in valid passes, blocks duplicate scans with historical time/gate details, or verifies return passes (`RE_ENTRY`).
+* **Exit Mode**: Scanner can be switched to "Exit (Pass-Out)" with 1 tap. Scanning an attendee marks them as temporarily exited (`CHECKED_OUT`), decrementing the venue headcount and enabling seamless re-entry verification later.
+
+### 5. 📶 Offline Pre-Cache & Background Sync (`IndexedDB`)
+* The active event's attendee roster is pre-cached directly into browser `IndexedDB`.
+* If venue cellular connectivity drops during entrance rush hours, the scanner validates tickets locally with **zero latency**.
+* Scans performed offline are queued in `IndexedDB` and automatically synchronized to Supabase the moment connectivity is restored.
+
+### 6. 📱 Progressive Web App (PWA) & Asset Caching
+* Complete `manifest.json` and Service Worker (`sw.js`).
+* Gate operators can "Add to Home Screen" on iOS & Android for a fullscreen native app experience.
+* Core application shell and CDN dependencies (Tailwind, FontAwesome, jsQR, etc.) are cached for 100% offline startup.
+
+---
+
 ## 👥 Role Hierarchy & Access Matrix
 
 | Feature | Master Admin | Event Admin | Ticketing Agent | Gate Scanner |
 | :--- | :---: | :---: | :---: | :---: |
-| **Manage Multiple Events** *(Add, edit, archive)* | ✅ All Events | ❌ | ❌ | ❌ |
+| **Manage Multiple Events** *(Add, clone, archive)* | ✅ All Events | ❌ | ❌ | ❌ |
+| **1-Click Event Cloning** | ✅ | ❌ | ❌ | ❌ |
 | **Event Switcher Dropdown** | ✅ Global | ✅ Assigned Events | ❌ | ❌ |
 | **Staff & User Management** *(Add user, reset password/PIN)* | ✅ All Users | ✅ Event Staff | ❌ | ❌ |
 | **Issue Individual Passes & Custom Tiers** | ✅ | ✅ | ✅ | ❌ |
 | **Bulk CSV Attendee Import** | ✅ | ✅ | ✅ | ❌ |
 | **Download PDF Tickets & Badges** | ✅ | ✅ | ✅ | ❌ |
 | **View Full Registered Attendee Details** | ✅ | ✅ | ✅ | ❌ |
-| **Mobile Gateway QR Scanner** | ✅ | ✅ | ❌ | ✅ |
+| **Mobile Gateway QR Scanner (Camera & File)** | ✅ | ✅ | ❌ | ✅ |
+| **Pass-Out & Re-Entry Tracking (Exit Mode)** | ✅ | ✅ | ❌ | ✅ |
+| **Offline IndexedDB Validation & Auto-Sync** | ✅ | ✅ | ❌ | ✅ |
+| **Live Venue Capacity Headcount Meter** | ✅ | ✅ | ❌ | ✅ |
 | **Anti-Duplicate Flash & Audit Log** | ✅ | ✅ | ❌ | ✅ |
 | **Real-time Analytics & CSV Export** | ✅ Global & Event | ✅ Event-Level | ❌ | ❌ |
 
@@ -45,16 +80,15 @@ To sync scans and ticket issuances across multiple devices in real-time (e.g. mo
 
 ### Step 2: Run the SQL Schema
 1. In your Supabase project dashboard, click **SQL Editor** on the left menu.
-2. Open `schema.sql` from this folder (or click **Copy SQL Schema** in the app's Database Modal).
+2. Open `schema.sql` from this repository.
 3. Paste the entire script into the SQL Editor and click **Run**.
-4. This automatically creates the `events`, `app_users`, `tickets`, and `audit_logs` tables with indexes, RLS policies, and realtime broadcast publications.
+4. This sets up the tables, RPC stored procedures (`check_in_ticket_rpc`, `pass_out_ticket_rpc`, `clone_event_rpc`), indexes, and realtime broadcast publications.
 
 ### Step 3: Connect EventShield
 1. In your Supabase dashboard, click **Project Settings (gear icon) &rarr; API** (or **Data API**).
 2. Copy your **Project URL** and your **Publishable API key** (also called **anon public key**).
-3. In `index.html`, click the cloud icon (or `Demo Mode` badge) in the top bar to open the **Database Setup Modal**.
-4. Paste your Project URL and Publishable/Anon Key, then click **Connect & Save**.
-5. Your system is now connected to a live PostgreSQL cloud database with instant realtime multi-device sync!
+3. In `config.js`, update `supabaseUrl` and `supabaseAnonKey` (or click the cloud icon in `index.html` to save via the Database Setup Modal).
+4. Your system is now connected to a live PostgreSQL cloud database with instant realtime multi-device sync!
 
 ---
 
@@ -64,12 +98,12 @@ Modern mobile browsers (iOS Safari, Android Chrome) require **HTTPS** or `localh
 
 ### Free 1-Click Hosting Options:
 * **GitHub Pages (Free)**:
-  1. Push this folder to a GitHub repository.
+  1. Push this repository to GitHub: `https://github.com/TheUltimate-1/IglooTickets.git`.
   2. In repository settings, go to **Pages &rarr; Source &rarr; Deploy from branch `main`**.
-  3. You get a free HTTPS link (e.g., `https://yourusername.github.io/qr-tickets/`). Open this on your mobile phone to scan passes at the gate!
+  3. You get a free HTTPS link (e.g., `https://theultimate-1.github.io/IglooTickets/`). Open this on your mobile phone to scan passes at the gate!
 * **Vercel or Netlify (Free)**:
-  1. Drag and drop this folder into [Netlify Drop](https://app.netlify.com/drop) or deploy via Vercel CLI.
-  2. Free automatic HTTPS domain provided in seconds.
+  1. Import the GitHub repository into [Vercel](https://vercel.com) or [Netlify](https://netlify.com).
+  2. Automatic deployment with free HTTPS on every git push.
 
 ---
 
@@ -77,5 +111,5 @@ Modern mobile browsers (iOS Safari, Android Chrome) require **HTTPS** or `localh
 
 * **Cryptographic Tokens**: Each pass is assigned a random 128-bit RFC4122 v4 UUID embedded in a QR code.
 * **Atomic First Scan**: On first scan, status flips to `CHECKED_IN`, recording the timestamp, scanner staff name, and entrance gate (e.g., *Gate 1*, *VIP Lane*).
-* **Duplicate Rejection Alert**: Any subsequent scans trigger an immediate loud error buzzer, a flashing red warning, and display the exact initial check-in time and gate location.
-* **Spotty Wi-Fi Resilience**: Mobile scanners cache the attendee roster locally. If venue Wi-Fi drops momentarily, the scanner continues validating tickets against the cache and pushes check-ins to Supabase once connectivity is restored.
+* **Duplicate Rejection Alert**: Any subsequent scan of a checked-in pass triggers an immediate loud error buzzer, a flashing red warning, and displays the exact initial check-in time, gate location, and scanner staff name.
+* **Concurrency Protection**: Even if two turnstiles scan the exact same QR code in the same millisecond, the database executes an atomic conditional check—only one succeeds, and the other is instantly flagged as a duplicate.

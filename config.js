@@ -16,7 +16,7 @@ const APP_CONFIG = {
     mode: 'SUPABASE',
 
     // App Metadata
-    version: '2.5.0',
+    version: '2.6.0',
     appName: 'EventShield QR Enterprise',
 
     // Default Seed Events (used for Demo Mode or initial sync)
@@ -29,6 +29,7 @@ const APP_CONFIG = {
             location: 'Metropolitan Convention Hall A',
             gatePin: '7788',
             tiers: ['VIP Platinum Pass', 'General Delegate', 'Speaker / VIP', 'Press & Media'],
+            capacity: 500,
             status: 'ACTIVE',
             createdAt: new Date().toISOString()
         },
@@ -40,6 +41,7 @@ const APP_CONFIG = {
             location: 'Exhibition Center - Pavilion 3',
             gatePin: '4321',
             tiers: ['Security Officer', 'Exhibitor All-Access', 'Standard Attendee'],
+            capacity: 350,
             status: 'ACTIVE',
             createdAt: new Date().toISOString()
         }

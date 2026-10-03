@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="50%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#312e81" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded rect -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="106" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4" />
+
+  <!-- Shield Base -->
+  <path d="M 256 64 C 340 64 416 96 416 192 C 416 320 256 424 256 448 C 256 424 96 320 96 192 C 96 96 172 64 256 64 Z" 
+        fill="url(#shieldGrad)" 
+        stroke="rgba(255,255,255,0.2)" 
+        stroke-width="8" />
+
+  <!-- Shield Inner Border -->
+  <path d="M 256 88 C 324 88 388 116 388 196 C 388 304 256 394 256 414 C 256 394 124 304 124 196 C 124 116 188 88 256 88 Z" 
+        fill="none" 
+        stroke="rgba(255,255,255,0.15)" 
+        stroke-width="4" />
+
+  <!-- QR Code & Scanner Laser Icon Motif inside Shield -->
+  <!-- Top Left Finder Pattern -->
+  <rect x="176" y="160" width="48" height="48" rx="8" fill="#ffffff" />
+  <rect x="188" y="172" width="24" height="24" rx="4" fill="#312e81" />
+
+  <!-- Top Right Finder Pattern -->
+  <rect x="288" y="160" width="48" height="48" rx="8" fill="#ffffff" />
+  <rect x="300" y="172" width="24" height="24" rx="4" fill="#312e81" />
+
+  <!-- Bottom Left Finder Pattern -->
+  <rect x="176" y="272" width="48" height="48" rx="8" fill="#ffffff" />
+  <rect x="188" y="284" width="24" height="24" rx="4" fill="#312e81" />
+
+  <!-- Central & Data Bits -->
+  <rect x="240" y="168" width="16" height="32" rx="4" fill="#ffffff" />
+  <rect x="264" y="200" width="16" height="16" rx="3" fill="#ffffff" />
+  <rect x="236" y="228" width="40" height="16" rx="4" fill="#ffffff" />
+  <rect x="288" y="232" width="16" height="24" rx="4" fill="#ffffff" />
+  <rect x="240" y="260" width="16" height="24" rx="4" fill="#ffffff" />
+  <rect x="272" y="276" width="32" height="16" rx="4" fill="#ffffff" />
+  <rect x="304" y="304" width="24" height="16" rx="4" fill="#ffffff" />
+
+  <!-- Green Laser Beam across QR -->
+  <line x1="140" y1="240" x2="372" y2="240" stroke="#10b981" stroke-width="8" stroke-linecap="round" filter="drop-shadow(0px 0px 8px #10b981)" />
+  <line x1="160" y1="240" x2="352" y2="240" stroke="#34d399" stroke-width="4" stroke-linecap="round" />
+</svg>

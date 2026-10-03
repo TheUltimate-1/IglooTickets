@@ -9,9 +9,9 @@ const APP_CONFIG = {
     // Paste your Supabase Project URL and Publishable/Anon Key here:
     // When filled, the app automatically connects in Live Multi-Device Sync mode!
     // =========================================================================
-    supabaseUrl: '',      // e.g. 'https://abcdefghijklm.supabase.co'
-    supabaseAnonKey: '',  // e.g. 'sbp_...' or 'eyJhbGci...'
-    
+    supabaseUrl: 'https://dvkrjustiobsvgyulnfc.supabase.co',      // e.g. 'https://abcdefghijklm.supabase.co'
+    supabaseAnonKey: 'sb_publishable_U3IhicX7ha_RqEfrKL-uCg_f--zMcfZ',  // e.g. 'sbp_...' or 'eyJhbGci...'
+
     // Mode: 'SUPABASE' (for live cloud sync) or 'DEMO' (for local test)
     mode: 'SUPABASE',
 

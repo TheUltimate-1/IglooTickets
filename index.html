@@ -1285,9 +1285,21 @@
             }
         }
 
+        // Security: HTML Sanitizer to prevent XSS in attendee names, notes, and emails
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function setupRealtimeSubscriptions() {
             if (!supabaseClient) return;
             try {
+                // Realtime Tickets
                 supabaseClient
                     .channel('public:tickets')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, payload => {
@@ -1295,12 +1307,72 @@
                     })
                     .subscribe();
 
+                // Realtime Audit Logs
                 supabaseClient
                     .channel('public:audit_logs')
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, payload => {
                         if (payload.new && payload.new.event_id === activeEventId) {
-                            auditLogsState.unshift(payload.new);
+                            auditLogsState.unshift({
+                                id: payload.new.id,
+                                eventId: payload.new.event_id,
+                                timestamp: new Date(payload.new.created_at).toLocaleTimeString(),
+                                token: payload.new.token,
+                                attendeeName: payload.new.attendee_name,
+                                resultType: payload.new.result_type,
+                                gate: payload.new.gate,
+                                staffName: payload.new.staff_name,
+                                notes: payload.new.notes
+                            });
                             renderAuditTable();
+                        }
+                    })
+                    .subscribe();
+
+                // Realtime Users / Staff
+                supabaseClient
+                    .channel('public:app_users')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_users' }, payload => {
+                        const { eventType, new: newRec } = payload;
+                        if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                            const idx = usersState.findIndex(u => u.id === newRec.id);
+                            const mapped = {
+                                id: newRec.id,
+                                username: newRec.username,
+                                email: newRec.email || '',
+                                passwordHash: newRec.password_hash,
+                                role: newRec.role,
+                                assignedEventIds: newRec.assigned_event_ids || [],
+                                fullName: newRec.full_name || newRec.username,
+                                status: newRec.status
+                            };
+                            if (idx !== -1) usersState[idx] = mapped;
+                            else usersState.push(mapped);
+                            renderUsersTable();
+                        }
+                    })
+                    .subscribe();
+
+                // Realtime Events
+                supabaseClient
+                    .channel('public:events')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
+                        const { eventType, new: newRec } = payload;
+                        if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                            const idx = eventsState.findIndex(e => e.id === newRec.id);
+                            const mapped = {
+                                id: newRec.id,
+                                name: newRec.name,
+                                code: newRec.code,
+                                date: newRec.date,
+                                location: newRec.location,
+                                gatePin: newRec.gate_pin,
+                                tiers: newRec.tiers || [],
+                                status: newRec.status
+                            };
+                            if (idx !== -1) eventsState[idx] = mapped;
+                            else eventsState.push(mapped);
+                            renderEventsDropdown();
+                            renderEventsManager();
                         }
                     })
                     .subscribe();
@@ -1327,6 +1399,7 @@
         async function syncFromSupabase() {
             if (!supabaseClient || !isSupabaseConnected) return;
             try {
+                // Sync Events
                 const { data: events } = await supabaseClient.from('events').select('*');
                 if (events && events.length) {
                     eventsState = events.map(e => ({
@@ -1341,11 +1414,28 @@
                     }));
                 }
 
+                // Sync Tickets
                 const { data: tickets } = await supabaseClient.from('tickets').select('*');
                 if (tickets && tickets.length) {
                     ticketsState = tickets.map(mapDbTicketToState);
                 }
 
+                // Sync Staff & Users
+                const { data: users } = await supabaseClient.from('app_users').select('*');
+                if (users && users.length) {
+                    usersState = users.map(u => ({
+                        id: u.id,
+                        username: u.username,
+                        email: u.email || '',
+                        passwordHash: u.password_hash,
+                        role: u.role,
+                        assignedEventIds: u.assigned_event_ids || [],
+                        fullName: u.full_name || u.username,
+                        status: u.status
+                    }));
+                }
+
+                // Sync Audit Logs
                 const { data: logs } = await supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100);
                 if (logs && logs.length) {
                     auditLogsState = logs.map(l => ({
@@ -1353,7 +1443,7 @@
                         eventId: l.event_id,
                         timestamp: new Date(l.created_at).toLocaleTimeString(),
                         token: l.token,
-                        name: l.attendee_name,
+                        attendeeName: l.attendee_name,
                         resultType: l.result_type,
                         gate: l.gate,
                         staffName: l.staff_name,
@@ -1365,6 +1455,7 @@
                 renderEventsDropdown();
                 renderRegistryTable();
                 renderQuickTestButtons();
+                renderUsersTable();
                 updateStats();
             } catch (e) {
                 console.error("Supabase sync error:", e);
@@ -2093,15 +2184,61 @@
             updateStats();
             renderQuickTestButtons();
 
-            // Push to Supabase if connected
+            // Push to Supabase if connected with strict atomic status check
             if (isSupabaseConnected && supabaseClient) {
                 try {
-                    await supabaseClient.from('tickets').update({
-                        status: 'CHECKED_IN',
-                        scanned_at: nowISO,
-                        scanned_by: staffName,
-                        scanned_gate: gateStation
-                    }).eq('id', ticket.id);
+                    const { data: updatedRows, error } = await supabaseClient
+                        .from('tickets')
+                        .update({
+                            status: 'CHECKED_IN',
+                            scanned_at: nowISO,
+                            scanned_by: staffName,
+                            scanned_gate: gateStation
+                        })
+                        .eq('id', ticket.id)
+                        .eq('status', 'VALID')
+                        .select();
+
+                    // If zero rows updated, another gate scanned this ticket concurrently!
+                    if (!error && updatedRows && updatedRows.length === 0) {
+                        const { data: latest } = await supabaseClient.from('tickets').select('*').eq('id', ticket.id).single();
+                        const firstScanTime = latest && latest.scanned_at ? new Date(latest.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Earlier';
+                        const firstGate = latest?.scanned_gate || 'Another Gate';
+                        const firstStaff = latest?.scanned_by || 'Staff';
+
+                        ticket.status = 'CHECKED_IN';
+                        ticket.scannedAt = latest?.scanned_at || nowISO;
+                        ticket.scannedGate = firstGate;
+                        ticket.scannedBy = firstStaff;
+                        duplicateCount++;
+                        saveStateToLocal();
+                        updateStats();
+                        renderQuickTestButtons();
+
+                        playAudioFeedback('error');
+                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+                        recordAuditLog(ticket.token, ticket.attendeeName, 'REJECTED_DUPLICATE', gateStation, staffName, `Concurrent scan blocked! Already checked in at ${firstScanTime} at ${firstGate}`);
+
+                        updateResultCard({
+                            type: 'DUPLICATE',
+                            title: 'ENTRY DENIED: CONCURRENT SCAN!',
+                            subtitle: `Duplicate pass detected! Validated a moment ago at ${firstGate}.`,
+                            badge: 'REJECTED: DUPLICATE ENTRY',
+                            badgeClass: 'bg-red-500 text-white font-bold animate-pulse-danger',
+                            iconClass: 'fa-ban text-red-500',
+                            bgClass: 'border-red-600 bg-red-950/40 shadow-2xl shadow-red-950',
+                            details: {
+                                name: ticket.attendeeName,
+                                tier: ticket.tier,
+                                token: ticket.token,
+                                gate: `${firstGate} (By: ${firstStaff})`,
+                                scannedAt: `${firstScanTime} (EARLIER ENTRY)`,
+                                scanLabel: 'First Validated At:'
+                            }
+                        });
+                        return;
+                    }
                 } catch (e) {
                     console.warn("Failed to push check-in to Supabase, queued for sync:", e);
                 }
@@ -2277,10 +2414,14 @@
                 return;
             }
 
-            const results = Papa.parse(rawText, {
-                skipEmptyLines: true
-            });
-            processParsedCsvRows(results.data);
+            let parsedRows = [];
+            if (window.Papa) {
+                const results = Papa.parse(rawText, { skipEmptyLines: true });
+                parsedRows = results.data;
+            } else {
+                parsedRows = rawText.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(',').map(c => c.trim().replace(/^["']|["']$/g, '')));
+            }
+            processParsedCsvRows(parsedRows);
         }
 
         function processParsedCsvRows(rows) {
@@ -2317,7 +2458,7 @@
 
             parsedCsvAttendees.slice(0, 10).forEach(a => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="p-2 font-semibold text-white">${a.name}</td><td class="p-2 text-indigo-300">${a.tier}</td><td class="p-2 text-gray-400">${a.email || '--'}</td>`;
+                tr.innerHTML = `<td class="p-2 font-semibold text-white">${escapeHtml(a.name)}</td><td class="p-2 text-indigo-300">${escapeHtml(a.tier)}</td><td class="p-2 text-gray-400">${escapeHtml(a.email || '--')}</td>`;
                 tbody.appendChild(tr);
             });
 
@@ -2603,14 +2744,14 @@
 
                 tr.innerHTML = `
                     <td class="py-3 px-3">
-                        <div class="font-semibold text-white">${t.attendeeName}</div>
-                        <div class="text-[10px] text-gray-400">${t.attendeeEmail || 'No email registered'}</div>
+                        <div class="font-semibold text-white">${escapeHtml(t.attendeeName)}</div>
+                        <div class="text-[10px] text-gray-400">${escapeHtml(t.attendeeEmail || 'No email registered')}</div>
                     </td>
                     <td class="py-3 px-3">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${t.tier}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${escapeHtml(t.tier)}</span>
                     </td>
                     <td class="py-3 px-3 font-mono text-indigo-300 text-[11px]">
-                        ${t.token.substring(0, 16)}...
+                        ${escapeHtml(t.token.substring(0, 16))}...
                     </td>
                     <td class="py-3 px-3">
                         <span class="px-2.5 py-0.5 rounded text-[10px] font-semibold ${
@@ -2620,16 +2761,16 @@
                         </span>
                     </td>
                     <td class="py-3 px-3 text-gray-400 text-[11px]">
-                        ${isCheckedIn ? `<div>${new Date(t.scannedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div><div class="text-[10px] text-gray-500">${t.scannedGate || 'Gate'} &bull; ${t.scannedBy || 'Staff'}</div>` : '<span class="text-gray-600">Pending</span>'}
+                        ${isCheckedIn ? `<div>${new Date(t.scannedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div><div class="text-[10px] text-gray-500">${escapeHtml(t.scannedGate || 'Gate')} &bull; ${escapeHtml(t.scannedBy || 'Staff')}</div>` : '<span class="text-gray-600">Pending</span>'}
                     </td>
                     <td class="py-3 px-3 text-right space-x-1">
-                        <button onclick="openQrModal('${t.token}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-indigo-300 rounded text-[11px] border border-gray-700" title="Inspect QR">
+                        <button onclick="openQrModal('${encodeURIComponent(t.token)}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-indigo-300 rounded text-[11px] border border-gray-700" title="Inspect QR">
                             <i class="fa-solid fa-qrcode mr-1"></i> QR
                         </button>
-                        <button onclick="downloadTicketPdf('${t.token}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-emerald-300 rounded text-[11px] border border-gray-700" title="PDF Ticket">
+                        <button onclick="downloadTicketPdf('${encodeURIComponent(t.token)}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-emerald-300 rounded text-[11px] border border-gray-700" title="PDF Ticket">
                             <i class="fa-solid fa-file-pdf"></i>
                         </button>
-                        <button onclick="revokeOrDeleteTicket('${t.token}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[11px] border border-red-500/30" title="Revoke Ticket">
+                        <button onclick="revokeOrDeleteTicket('${encodeURIComponent(t.token)}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[11px] border border-red-500/30" title="Revoke Ticket">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </td>
@@ -2659,8 +2800,8 @@
 
                 btn.innerHTML = `
                     <div class="truncate mr-2">
-                        <div class="font-semibold text-xs truncate">${t.attendeeName}</div>
-                        <div class="text-[10px] text-gray-400 font-mono">${t.tier}</div>
+                        <div class="font-semibold text-xs truncate">${escapeHtml(t.attendeeName)}</div>
+                        <div class="text-[10px] text-gray-400 font-mono">${escapeHtml(t.tier)}</div>
                     </div>
                     <span class="text-[10px] px-2 py-0.5 rounded font-medium whitespace-nowrap ${
                         isCheckedIn ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-300'
@@ -2728,12 +2869,12 @@
                 }
 
                 tr.innerHTML = `
-                    <td class="py-3 px-3 font-mono text-gray-400">${log.timestamp}</td>
-                    <td class="py-3 px-3 font-semibold text-white">${log.attendeeName || 'Unknown'}</td>
-                    <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] ${badgeClass}">${log.resultType}</span></td>
-                    <td class="py-3 px-3 text-gray-300">${log.gate || 'Gate 1'}</td>
-                    <td class="py-3 px-3 text-indigo-300">${log.staffName || 'Staff'}</td>
-                    <td class="py-3 px-3 text-gray-400 text-[11px]">${log.notes || ''}</td>
+                    <td class="py-3 px-3 font-mono text-gray-400">${escapeHtml(log.timestamp)}</td>
+                    <td class="py-3 px-3 font-semibold text-white">${escapeHtml(log.attendeeName || 'Unknown')}</td>
+                    <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] ${badgeClass}">${escapeHtml(log.resultType)}</span></td>
+                    <td class="py-3 px-3 text-gray-300">${escapeHtml(log.gate || 'Gate 1')}</td>
+                    <td class="py-3 px-3 text-indigo-300">${escapeHtml(log.staffName || 'Staff')}</td>
+                    <td class="py-3 px-3 text-gray-400 text-[11px]">${escapeHtml(log.notes || '')}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2828,25 +2969,25 @@
 
                 tr.innerHTML = `
                     <td class="py-3 px-3">
-                        <div class="font-semibold text-white">${u.username}</div>
-                        <div class="text-[10px] text-gray-400">${u.fullName || '--'}</div>
+                        <div class="font-semibold text-white">${escapeHtml(u.username)}</div>
+                        <div class="text-[10px] text-gray-400">${escapeHtml(u.fullName || '--')}</div>
                     </td>
                     <td class="py-3 px-3">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-800 text-indigo-300 border border-gray-700">${u.role}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-800 text-indigo-300 border border-gray-700">${escapeHtml(u.role)}</span>
                     </td>
-                    <td class="py-3 px-3 text-gray-400 text-xs">${u.email || '<span class="text-gray-600 font-mono">None</span>'}</td>
-                    <td class="py-3 px-3 text-xs text-indigo-300 font-mono">${assignedNames}</td>
+                    <td class="py-3 px-3 text-gray-400 text-xs">${u.email ? escapeHtml(u.email) : '<span class="text-gray-600 font-mono">None</span>'}</td>
+                    <td class="py-3 px-3 text-xs text-indigo-300 font-mono">${escapeHtml(assignedNames)}</td>
                     <td class="py-3 px-3">
                         <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${
                             u.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                        }">${u.status}</span>
+                        }">${escapeHtml(u.status)}</span>
                     </td>
                     <td class="py-3 px-3 text-right space-x-1.5">
-                        <button onclick="openResetPasswordModal('${u.id}')" class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded text-[11px] border border-amber-500/30" title="Reset Password/PIN">
+                        <button onclick="openResetPasswordModal('${encodeURIComponent(u.id)}')" class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded text-[11px] border border-amber-500/30" title="Reset Password/PIN">
                             <i class="fa-solid fa-key mr-1"></i> Reset
                         </button>
                         ${u.id !== currentUser.id && u.role !== 'MASTER_ADMIN' ? `
-                            <button onclick="toggleUserStatus('${u.id}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-[11px] border border-gray-700">
+                            <button onclick="toggleUserStatus('${encodeURIComponent(u.id)}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-[11px] border border-gray-700">
                                 ${u.status === 'ACTIVE' ? 'Revoke' : 'Activate'}
                             </button>
                         ` : ''}
@@ -2972,19 +3113,19 @@
                 card.innerHTML = `
                     <div class="flex items-start justify-between gap-2">
                         <div>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300">${ev.code}</span>
-                            <h3 class="text-base font-bold text-white mt-1.5">${ev.name}</h3>
-                            <p class="text-xs text-gray-400 mt-0.5"><i class="fa-solid fa-location-dot mr-1 text-indigo-400"></i> ${ev.location}</p>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300">${escapeHtml(ev.code)}</span>
+                            <h3 class="text-base font-bold text-white mt-1.5">${escapeHtml(ev.name)}</h3>
+                            <p class="text-xs text-gray-400 mt-0.5"><i class="fa-solid fa-location-dot mr-1 text-indigo-400"></i> ${escapeHtml(ev.location)}</p>
                         </div>
                         <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${ev.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gray-800 text-gray-500'}">
-                            ${ev.status}
+                            ${escapeHtml(ev.status)}
                         </span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 text-xs bg-gray-900/60 p-2.5 rounded-xl border border-gray-800">
                         <div>
                             <span class="text-gray-500 text-[10px] uppercase">Gate PIN:</span>
-                            <div class="font-mono text-indigo-300 font-bold">${ev.gatePin}</div>
+                            <div class="font-mono text-indigo-300 font-bold">${escapeHtml(ev.gatePin)}</div>
                         </div>
                         <div>
                             <span class="text-gray-500 text-[10px] uppercase">Issued Passes:</span>
@@ -2993,14 +3134,14 @@
                     </div>
 
                     <div class="text-[11px] text-gray-400 truncate">
-                        <span class="text-gray-500">Tiers:</span> ${(ev.tiers || []).join(', ')}
+                        <span class="text-gray-500">Tiers:</span> ${escapeHtml((ev.tiers || []).join(', '))}
                     </div>
 
                     <div class="flex items-center justify-between pt-2 border-t border-gray-800">
-                        <button onclick="handleEventSwitch('${ev.id}')" class="px-3 py-1.5 ${ev.id === activeEventId ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'} rounded-lg text-xs font-semibold">
+                        <button onclick="handleEventSwitch('${encodeURIComponent(ev.id)}')" class="px-3 py-1.5 ${ev.id === activeEventId ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'} rounded-lg text-xs font-semibold">
                             ${ev.id === activeEventId ? 'Active Event' : 'Select Event'}
                         </button>
-                        <button onclick="toggleEventArchive('${ev.id}')" class="text-xs text-gray-400 hover:text-red-400">
+                        <button onclick="toggleEventArchive('${encodeURIComponent(ev.id)}')" class="text-xs text-gray-400 hover:text-red-400">
                             ${ev.status === 'ACTIVE' ? 'Archive' : 'Activate'}
                         </button>
                     </div>

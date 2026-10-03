@@ -143,7 +143,7 @@ END $$;
 -- 7. 🛡️ SECURITY & ATOMIC DATABASE PROCEDURES (RPC)
 -- =========================================================================
 
--- A. Atomic Check-In & Re-Entry RPC
+-- A. Atomic Check-In & Re-Entry RPC (Row-locked to prevent TOCTOU race conditions)
 CREATE OR REPLACE FUNCTION check_in_ticket_rpc(
     p_event_id UUID,
     p_token TEXT,
@@ -153,15 +153,17 @@ CREATE OR REPLACE FUNCTION check_in_ticket_rpc(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_ticket RECORD;
     v_is_reentry BOOLEAN := false;
 BEGIN
-    -- 1. Find ticket by token and event
+    -- 1. Find ticket with row-level lock (FOR UPDATE) to serialize concurrent scans
     SELECT * INTO v_ticket 
     FROM public.tickets 
-    WHERE event_id = p_event_id AND LOWER(token) = LOWER(p_token);
+    WHERE event_id = p_event_id AND LOWER(token) = LOWER(p_token)
+    FOR UPDATE;
 
     IF NOT FOUND THEN
         INSERT INTO public.audit_logs (event_id, token, attendee_name, result_type, gate, staff_name, notes)
@@ -242,7 +244,7 @@ BEGIN
 END;
 $$;
 
--- B. Atomic Pass-Out / Exit Tracking RPC
+-- B. Atomic Pass-Out / Exit Tracking RPC (Row-locked)
 CREATE OR REPLACE FUNCTION pass_out_ticket_rpc(
     p_event_id UUID,
     p_token TEXT,
@@ -252,16 +254,23 @@ CREATE OR REPLACE FUNCTION pass_out_ticket_rpc(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_ticket RECORD;
 BEGIN
+    -- Row-level lock to prevent concurrent pass-out / check-in conflicts
     SELECT * INTO v_ticket 
     FROM public.tickets 
-    WHERE event_id = p_event_id AND LOWER(token) = LOWER(p_token);
+    WHERE event_id = p_event_id AND LOWER(token) = LOWER(p_token)
+    FOR UPDATE;
 
     IF NOT FOUND THEN
         RETURN jsonb_build_object('success', false, 'reason', 'INVALID', 'message', 'Ticket not found.');
+    END IF;
+
+    IF v_ticket.status = 'REVOKED' THEN
+        RETURN jsonb_build_object('success', false, 'reason', 'REVOKED', 'message', 'This ticket has been revoked by event administration.');
     END IF;
 
     IF v_ticket.status = 'CHECKED_OUT' THEN
@@ -312,33 +321,43 @@ CREATE OR REPLACE FUNCTION clone_event_rpc(
     p_new_code TEXT,
     p_new_date TEXT,
     p_new_location TEXT,
-    p_creator_user_id UUID DEFAULT NULL
+    p_creator_user_id UUID DEFAULT NULL,
+    p_new_id UUID DEFAULT NULL,
+    p_new_pin TEXT DEFAULT NULL,
+    p_new_capacity INT DEFAULT NULL,
+    p_new_tiers JSONB DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_source RECORD;
-    v_new_id UUID := uuid_generate_v4();
+    v_new_id UUID := COALESCE(p_new_id, uuid_generate_v4());
     v_user_assigned JSONB;
 BEGIN
+    -- Check if target event code already exists
+    IF EXISTS (SELECT 1 FROM public.events WHERE UPPER(code) = UPPER(p_new_code)) THEN
+        RETURN jsonb_build_object('success', false, 'message', 'An event with this code already exists. Please choose a unique code.');
+    END IF;
+
     SELECT * INTO v_source FROM public.events WHERE id = p_source_event_id;
     IF NOT FOUND THEN
         RETURN jsonb_build_object('success', false, 'message', 'Source event not found.');
     END IF;
 
-    -- Insert cloned event
+    -- Insert cloned event with customized parameters or source defaults
     INSERT INTO public.events (id, name, code, date, location, gate_pin, tiers, capacity, status)
     VALUES (
         v_new_id,
         p_new_name,
-        p_new_code,
+        UPPER(p_new_code),
         p_new_date,
         p_new_location,
-        v_source.gate_pin,
-        v_source.tiers,
-        COALESCE(v_source.capacity, 500),
+        COALESCE(p_new_pin, v_source.gate_pin, '1234'),
+        COALESCE(p_new_tiers, v_source.tiers, '["VIP Pass", "Standard Pass"]'::jsonb),
+        COALESCE(p_new_capacity, v_source.capacity, 500),
         'ACTIVE'
     );
 
@@ -356,10 +375,10 @@ BEGIN
         'success', true,
         'id', v_new_id,
         'name', p_new_name,
-        'code', p_new_code,
+        'code', UPPER(p_new_code),
         'date', p_new_date,
         'location', p_new_location,
-        'capacity', COALESCE(v_source.capacity, 500)
+        'capacity', COALESCE(p_new_capacity, v_source.capacity, 500)
     );
 END;
 $$;
@@ -367,7 +386,7 @@ $$;
 -- Grant execution to public / anon for easy client RPC access
 GRANT EXECUTE ON FUNCTION check_in_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION pass_out_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB) TO anon, authenticated, service_role;
 
 -- 8. Seed Initial Master Admin and Demo Event
 INSERT INTO public.events (id, name, code, date, location, gate_pin, tiers, capacity)

@@ -405,12 +405,12 @@ INSERT INTO public.app_users (id, username, email, password_hash, role, assigned
 VALUES 
 (
     'b0000000-0000-0000-0000-000000000001',
-    'master_admin',
-    'superadmin@iglootickets.io',
-    'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
+    'nethil',
+    'nethil2008@gmail.com',
+    '77aae185203edc6357676db95caa25d0f398d402c1723e6a7b42cfe8d2967f2e',
     'MASTER_ADMIN',
     '[]'::jsonb,
-    'Global System Director'
+    'Nethil'
 ),
 (
     'b0000000-0000-0000-0000-000000000002',

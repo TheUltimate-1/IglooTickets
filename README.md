@@ -36,7 +36,7 @@ No backend configuration or local build steps are required.
 2. Open `index.html` in your browser (Chrome, Safari, Edge, Firefox).
 3. The application runs immediately in **Demo Mode**, pre-configured with default events and staff accounts.
 4. Test all 4 user roles instantly using the top-right **Quick 1-Click Role Switcher**:
-   - 👑 **Master Admin** (`master_admin` / `password123`)
+   - 👑 **Master Admin** (`nethil` or `nethil2008@gmail.com` / `Qwerty123`)
    - 🛡️ **Event Admin** (`event_admin` / `password123`)
    - 🎟️ **Ticketing Agent** (`agent_marcus` / `password123`)
    - 📱 **Gate Scanner** (`gate_scanner` / `password123` or PIN: Code `TECH26`, PIN `7788`)
@@ -73,6 +73,11 @@ No backend configuration or local build steps are required.
 * Gate operators can "Add to Home Screen" on iOS & Android for a fullscreen native app experience.
 * Core application shell and CDN dependencies (Tailwind, FontAwesome, jsQR, etc.) are cached for 100% offline startup.
 
+### 7. 👤 User Profile Management & Self-Service Password Reset
+* **Self-Service Profile Edit**: All users can edit their profile (Full Name, Email) and change their own password directly via the in-app modal.
+* **Self-Service Forgot Password**: Direct self-reset from the login modal allows account password recovery by username or email.
+* **Administrative Staff Directory**: Admins can edit staff profiles, modify roles, assign events, and reset credentials.
+
 ---
 
 ## 👥 Role Hierarchy & Access Matrix
@@ -83,6 +88,8 @@ No backend configuration or local build steps are required.
 | **1-Click Event Cloning** | ✅ | ❌ | ❌ | ❌ |
 | **Event Switcher Dropdown** | ✅ Global | ✅ Assigned Events | ❌ | ❌ |
 | **Staff & User Management** *(Add user, reset password/PIN)* | ✅ All Users | ✅ Event Staff | ❌ | ❌ |
+| **Edit Staff Profiles & Roles** | ✅ All Staff | ✅ Event Staff | ❌ | ❌ |
+| **Self-Service Profile Edit & Password Reset** | ✅ | ✅ | ✅ | ✅ |
 | **Issue Individual Passes & Custom Tiers** | ✅ | ✅ | ✅ | ❌ |
 | **Bulk CSV Attendee Import** | ✅ | ✅ | ✅ | ❌ |
 | **Download PDF Tickets & Badges** | ✅ | ✅ | ✅ | ❌ |

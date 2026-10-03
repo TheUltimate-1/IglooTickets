@@ -35,16 +35,17 @@ const APP_CONFIG = {
         }
     ],
 
-    // Default Seed Users (Password for all accounts is: password123)
-    // SHA-256('password123') = ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f
+    // Default Seed Users
+    // Master Admin password: Qwerty123 (SHA-256: 77aae185203edc6357676db95caa25d0f398d402c1723e6a7b42cfe8d2967f2e)
+    // Other accounts password: password123 (SHA-256: ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f)
     defaultUsers: [
         {
             id: 'b0000000-0000-0000-0000-000000000001',
-            username: 'master_admin',
-            email: 'master@iglootickets.com',
-            passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
+            username: 'nethil',
+            email: 'nethil2008@gmail.com',
+            passwordHash: '77aae185203edc6357676db95caa25d0f398d402c1723e6a7b42cfe8d2967f2e',
             role: 'MASTER_ADMIN',
-            fullName: 'Alexander Vance (Master Director)',
+            fullName: 'Nethil',
             assignedEventIds: [], // All events
             status: 'ACTIVE',
             createdAt: new Date().toISOString()

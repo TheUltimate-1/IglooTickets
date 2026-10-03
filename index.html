@@ -136,12 +136,197 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-indigo-600 selection:text-white">
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-indigo-600 selection:text-white bg-[#070b14] text-gray-100">
 
     <!-- ========================================================================= -->
-    <!-- TOP NAVIGATION BAR -->
+    <!-- AUTHENTICATION VIEW: DEDICATED FULL-SCREEN LAUNCH LOGIN PAGE -->
+    <!-- (Displayed when unauthenticated; dashboard is completely locked and hidden) -->
     <!-- ========================================================================= -->
-    <header class="glass-panel sticky top-0 z-40 border-b border-gray-800/80">
+    <div id="auth-view" class="min-h-screen w-full flex flex-col justify-between relative overflow-hidden bg-[#070b14] text-gray-100 p-4 sm:p-6 md:p-8">
+        
+        <!-- Ambient Glowing Background Accents -->
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none"></div>
+        <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-600/10 rounded-full blur-[140px] pointer-events-none"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-indigo-950/20 rounded-full blur-[160px] pointer-events-none"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none"></div>
+
+        <!-- Top Header Bar on Login Page -->
+        <header class="w-full max-w-5xl mx-auto flex items-center justify-between py-2 relative z-10">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-gradient-to-tr from-indigo-700 to-indigo-500 text-white rounded-xl shadow-md shadow-indigo-600/30 flex-shrink-0">
+                    <i class="fa-solid fa-shield-halved text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-base font-bold tracking-tight text-white">IglooTickets</span>
+                    <span class="hidden sm:inline-block ml-2 text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">Enterprise</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span id="auth-mode-badge" onclick="openDatabaseModal()" class="cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-full border bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 shadow-sm" title="Click to view database connection details">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="auth-mode-text">⚡ Cloud Synced</span>
+                </span>
+            </div>
+        </header>
+
+        <!-- Main Auth Container -->
+        <main class="w-full max-w-md mx-auto my-auto py-8 relative z-10">
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl border border-indigo-500/30 shadow-2xl shadow-black/80 backdrop-blur-2xl space-y-6">
+                
+                <!-- Brand Hero -->
+                <div class="text-center space-y-1.5">
+                    <div class="relative inline-block mb-1">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center text-white text-2xl shadow-xl shadow-indigo-600/30 mx-auto border border-indigo-300/30">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <span class="absolute -bottom-1 -right-1 flex h-4 w-4">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-[#070b14]"></span>
+                        </span>
+                    </div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">IglooTickets Enterprise</h1>
+                    <p class="text-xs text-gray-400 font-medium">Event Access Control &amp; Anti-Duplicate Gateway</p>
+                </div>
+
+                <!-- Tab Switcher: Staff Credentials vs Gate Terminal PIN -->
+                <div class="flex p-1 bg-gray-900/90 rounded-2xl border border-gray-800 text-xs">
+                    <button type="button" onclick="setAuthTab('staff')" id="auth-tab-staff" class="flex-1 py-2 font-semibold rounded-xl bg-indigo-600 text-white transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span>Staff Login</span>
+                    </button>
+                    <button type="button" onclick="setAuthTab('pin')" id="auth-tab-pin" class="flex-1 py-2 font-semibold rounded-xl text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-qrcode"></i>
+                        <span>Gate PIN</span>
+                    </button>
+                </div>
+
+                <!-- Form A: Staff Login (Username & Password) -->
+                <form id="staff-login-form" onsubmit="handleStaffLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Username or Email</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                <i class="fa-solid fa-user text-xs"></i>
+                            </div>
+                            <input type="text" id="login-username" required placeholder="nethil or nethil2008@gmail.com" class="w-full pl-10 pr-3 py-2.5 bg-gray-900/90 border border-gray-700/80 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider">Password</label>
+                            <button type="button" onclick="openSelfResetModal()" class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+                                Reset Password?
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                <i class="fa-solid fa-lock text-xs"></i>
+                            </div>
+                            <input type="password" id="login-password" required placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 bg-gray-900/90 border border-gray-700/80 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono">
+                            <button type="button" onclick="togglePasswordVisibility('login-password', 'pwd-toggle-icon')" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 hover:text-gray-300 transition-colors" title="Toggle password visibility">
+                                <i id="pwd-toggle-icon" class="fa-solid fa-eye text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs pt-0.5">
+                        <label class="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-300">
+                            <input type="checkbox" id="auth-remember-me" checked class="rounded bg-gray-900 border-gray-700 text-indigo-600 focus:ring-0 w-3.5 h-3.5">
+                            <span class="text-[11px]">Remember on this device</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" id="staff-login-submit-btn" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 group">
+                        <span>Sign In to Console</span>
+                        <i class="fa-solid fa-arrow-right text-xs group-hover:translate-x-0.5 transition-transform"></i>
+                    </button>
+                </form>
+
+                <!-- Form B: Mobile Gate PIN Login (Event Code + 4-digit PIN) -->
+                <form id="pin-login-form" onsubmit="handlePinLogin(event)" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Event Code</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                <i class="fa-solid fa-calendar-days text-xs"></i>
+                            </div>
+                            <input type="text" id="pin-event-code" required placeholder="e.g. TECH26" class="w-full pl-10 pr-3 py-2.5 bg-gray-900/90 border border-gray-700/80 rounded-xl text-white text-xs font-mono uppercase placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Gate PIN (4 Digits)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                <i class="fa-solid fa-keypad text-xs"></i>
+                            </div>
+                            <input type="password" maxlength="6" id="pin-input" required placeholder="••••" class="w-full pl-10 pr-3 py-2.5 bg-gray-900/90 border border-gray-700/80 rounded-xl text-white text-base font-mono tracking-widest text-center placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                        </div>
+                    </div>
+
+                    <p class="text-[11px] text-gray-500 italic text-center">Unlocks mobile camera scanning directly for gate attendants without a full login.</p>
+
+                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 group">
+                        <i class="fa-solid fa-qrcode text-sm"></i>
+                        <span>Unlock Gate Scanner</span>
+                    </button>
+                </form>
+
+                <!-- Quick 1-Click Master Admin Card -->
+                <div class="pt-4 border-t border-gray-800/80 space-y-2">
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-gray-400 font-medium">Quick 1-Click Access:</span>
+                        <span class="text-amber-400 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Master Admin</span>
+                    </div>
+                    <button type="button" onclick="quickLoginRole('MASTER_ADMIN')" class="w-full p-2.5 bg-gray-900/90 hover:bg-indigo-950/40 text-left rounded-xl border border-gray-800 hover:border-indigo-500/40 text-gray-300 transition-all flex items-center justify-between gap-2 group shadow-sm">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                                <i class="fa-solid fa-crown text-sm"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-xs text-white group-hover:text-indigo-300 transition-colors">Nethil</div>
+                                <div class="text-[10px] text-gray-400 font-mono">nethil2008@gmail.com</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-semibold px-2 py-1 rounded bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 group-hover:bg-indigo-600 group-hover:text-white transition-all flex items-center gap-1">
+                            <span>Sign In</span>
+                            <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                        </span>
+                    </button>
+                    <p class="text-[10px] text-gray-500 text-center">Additional staff accounts can be created from the Global Staff tab once logged in.</p>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- Footer on Login Page -->
+        <footer class="w-full max-w-5xl mx-auto py-3 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500 relative z-10 border-t border-gray-800/40">
+            <div class="flex items-center gap-3 text-[11px]">
+                <span class="flex items-center gap-1 text-gray-400">
+                    <i class="fa-solid fa-shield text-indigo-400"></i> Single-Use Cryptographic QR
+                </span>
+                <span class="flex items-center gap-1 text-gray-400">
+                    <i class="fa-solid fa-lock text-emerald-400"></i> Atomic Row-Locks
+                </span>
+            </div>
+            <div class="text-[11px] text-gray-500">
+                IglooTickets Core &bull; Enterprise Production Build &bull; v2.6.1
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MAIN APPLICATION DASHBOARD (Unlocked only after successful authentication) -->
+    <!-- ========================================================================= -->
+    <div id="app-dashboard" class="min-h-screen flex flex-col justify-between hidden">
+
+        <!-- ========================================================================= -->
+        <!-- TOP NAVIGATION BAR -->
+        <!-- ========================================================================= -->
+        <header class="glass-panel sticky top-0 z-40 border-b border-gray-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16 gap-2">
                 
@@ -202,7 +387,7 @@
                         <button onclick="openProfileModal()" class="text-xs text-gray-400 hover:text-indigo-300 p-1 rounded transition-colors" title="My Profile & Security Settings">
                             <i class="fa-solid fa-user-gear"></i>
                         </button>
-                        <button onclick="openLoginModal()" class="text-xs text-gray-400 hover:text-red-400 p-1 rounded transition-colors" title="Switch User / Logout">
+                        <button onclick="handleSignOut()" class="text-xs text-gray-400 hover:text-red-400 p-1 rounded transition-colors" title="Sign Out">
                             <i class="fa-solid fa-arrow-right-from-bracket"></i>
                         </button>
                     </div>
@@ -851,92 +1036,10 @@
             </div>
         </div>
     </footer>
+    </div><!-- End of #app-dashboard -->
 
     <!-- Toast Notification Banner -->
     <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] hidden max-w-sm w-[90%] px-4 py-2.5 rounded-xl text-xs text-center border backdrop-blur-md shadow-2xl transition-all"></div>
-
-    <!-- ========================================================================= -->
-    <!-- MODAL 1: AUTHENTICATION & QUICK ROLE SWITCHER -->
-    <!-- ========================================================================= -->
-    <div id="login-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-5 border border-indigo-500/30 relative shadow-2xl">
-            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
-                <i class="fa-solid fa-times text-base"></i>
-            </button>
-
-            <div class="text-center space-y-1">
-                <div class="inline-flex p-3 bg-indigo-600/10 text-indigo-400 rounded-2xl border border-indigo-500/20 mb-2">
-                    <i class="fa-solid fa-user-shield text-2xl"></i>
-                </div>
-                <h3 class="text-lg font-bold text-white">IglooTickets Access Portal</h3>
-                <p class="text-xs text-gray-400">Select login mode or click a 1-click test role below.</p>
-            </div>
-
-            <!-- Tab Switcher: Staff Credentials vs Gate Scanner PIN -->
-            <div class="flex p-1 bg-gray-900 rounded-xl border border-gray-800 text-xs">
-                <button onclick="setAuthTab('staff')" id="auth-tab-staff" class="flex-1 py-1.5 font-semibold rounded-lg bg-indigo-600 text-white">
-                    <i class="fa-solid fa-key mr-1"></i> Staff Login
-                </button>
-                <button onclick="setAuthTab('pin')" id="auth-tab-pin" class="flex-1 py-1.5 font-semibold rounded-lg text-gray-400 hover:text-white">
-                    <i class="fa-solid fa-mobile-screen mr-1"></i> Mobile Gate PIN
-                </button>
-            </div>
-
-            <!-- Form A: Staff Login (Username & Password) -->
-            <form id="staff-login-form" onsubmit="handleStaffLogin(event)" class="space-y-3.5">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Username or Email</label>
-                    <input type="text" id="login-username" required placeholder="nethil, master_admin, or email..." class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <div class="flex items-center justify-between mb-1">
-                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
-                        <button type="button" onclick="openSelfResetModal()" class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
-                            Reset Password?
-                        </button>
-                    </div>
-                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
-                </div>
-                <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30">
-                    Sign In as Staff
-                </button>
-            </form>
-
-            <!-- Form B: Mobile Gate PIN Login (Event Code + 4-digit PIN) -->
-            <form id="pin-login-form" onsubmit="handlePinLogin(event)" class="space-y-3.5 hidden">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Event Code</label>
-                    <input type="text" id="pin-event-code" required placeholder="e.g. TECH26" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono uppercase placeholder-gray-500 focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Gate 4-Digit PIN</label>
-                    <input type="password" maxlength="6" id="pin-input" required placeholder="e.g. 7788" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs font-mono tracking-widest text-center text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500">
-                </div>
-                <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/30">
-                    Unlock Gate Scanner
-                </button>
-            </form>
-
-            <!-- Quick 1-Click Administrator Access -->
-            <div class="pt-3 border-t border-gray-800 space-y-2">
-                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Default Registered Administrator:</span>
-                <button type="button" onclick="quickLoginRole('MASTER_ADMIN')" class="w-full p-2.5 bg-gray-900 hover:bg-indigo-950/40 text-left rounded-xl border border-gray-800 text-gray-300 transition-all flex items-center justify-between gap-2 group">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                            <i class="fa-solid fa-crown text-sm"></i>
-                        </div>
-                        <div>
-                            <div class="font-semibold text-xs text-white group-hover:text-indigo-300 transition-colors">Master Admin (Nethil)</div>
-                            <div class="text-[10px] text-gray-400 font-mono">nethil2008@gmail.com</div>
-                        </div>
-                    </div>
-                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/30">1-Click Sign In</span>
-                </button>
-                <p class="text-[10px] text-gray-500 italic text-center">Additional staff accounts can be created from the Global Staff tab once logged in.</p>
-            </div>
-
-        </div>
-    </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 2: SUPABASE & CLOUD DATABASE SETUP WIZARD -->
@@ -1163,6 +1266,12 @@
                     <i class="fa-solid fa-lock"></i> Update Password Now
                 </button>
             </form>
+
+            <div class="pt-3 border-t border-gray-800">
+                <button type="button" onclick="closeProfileModal(); handleSignOut();" class="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-300 font-semibold rounded-xl text-xs transition-all border border-red-500/30 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out of Account
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1492,10 +1601,6 @@
             setupOnlineOfflineListeners();
             await initSupabaseClient();
             initSession();
-            renderNavigation();
-            renderEventsDropdown();
-            renderActiveView();
-            updateStats();
         });
 
         /* Progressive Web App Registration */
@@ -1884,21 +1989,31 @@
             const modalModeText = document.getElementById('modal-active-mode-text');
             const modalToggleBtn = document.getElementById('modal-mode-toggle-btn');
             const footerConn = document.getElementById('footer-connection-indicator');
+            const authModeText = document.getElementById('auth-mode-text');
+            const authModeBadge = document.getElementById('auth-mode-badge');
 
             if (isLive) {
-                modeBadge.className = "cursor-pointer text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 transition-all flex items-center gap-1 shadow-sm shadow-emerald-500/20";
-                modeText.textContent = "⚡ Supabase Live";
-                modalModeText.textContent = "⚡ Supabase Connected (Live Multi-Device Sync)";
-                modalModeText.className = "font-bold text-emerald-400 ml-1";
-                modalToggleBtn.textContent = "Switch to Demo Mode";
-                footerConn.innerHTML = `<i class="fa-solid fa-circle text-[8px] text-emerald-400"></i> Cloud Realtime Synced`;
+                if (modeBadge) modeBadge.className = "cursor-pointer text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 transition-all flex items-center gap-1 shadow-sm shadow-emerald-500/20";
+                if (modeText) modeText.textContent = "⚡ Supabase Live";
+                if (modalModeText) {
+                    modalModeText.textContent = "⚡ Supabase Connected (Live Multi-Device Sync)";
+                    modalModeText.className = "font-bold text-emerald-400 ml-1";
+                }
+                if (modalToggleBtn) modalToggleBtn.textContent = "Switch to Demo Mode";
+                if (footerConn) footerConn.innerHTML = `<i class="fa-solid fa-circle text-[8px] text-emerald-400"></i> Cloud Realtime Synced`;
+                if (authModeBadge) authModeBadge.className = "cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-full border bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 shadow-sm";
+                if (authModeText) authModeText.textContent = "⚡ Cloud Synced";
             } else {
-                modeBadge.className = "cursor-pointer text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20 transition-all flex items-center gap-1";
-                modeText.textContent = "Demo Mode (Local)";
-                modalModeText.textContent = "Demo Mode (Local Storage)";
-                modalModeText.className = "font-bold text-indigo-400 ml-1";
-                modalToggleBtn.textContent = "Connect Supabase";
-                footerConn.innerHTML = `<i class="fa-solid fa-circle text-[8px] text-indigo-400"></i> Local Demo Mode`;
+                if (modeBadge) modeBadge.className = "cursor-pointer text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20 transition-all flex items-center gap-1";
+                if (modeText) modeText.textContent = "Demo Mode (Local)";
+                if (modalModeText) {
+                    modalModeText.textContent = "Demo Mode (Local Storage)";
+                    modalModeText.className = "font-bold text-indigo-400 ml-1";
+                }
+                if (modalToggleBtn) modalToggleBtn.textContent = "Connect Supabase";
+                if (footerConn) footerConn.innerHTML = `<i class="fa-solid fa-circle text-[8px] text-indigo-400"></i> Local Demo Mode`;
+                if (authModeBadge) authModeBadge.className = "cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-full border bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 shadow-sm";
+                if (authModeText) authModeText.textContent = "Local Mode";
             }
         }
 
@@ -2122,15 +2237,45 @@
            4. SESSION, AUTHENTICATION & ROLE MANAGEMENT
            ========================================================================= */
         function initSession() {
-            const savedUserId = localStorage.getItem('iglootickets_session_user_id') || localStorage.getItem('eventshield_session_user_id');
-            if (savedUserId) {
-                currentUser = usersState.find(u => u.id === savedUserId);
+            // First time launch cleanup: ensure users land on the dedicated login screen
+            if (!localStorage.getItem('iglootickets_launch_auth_v1')) {
+                localStorage.removeItem('iglootickets_session_user_id');
+                localStorage.removeItem('eventshield_session_user_id');
+                sessionStorage.removeItem('iglootickets_session_user_id');
+                localStorage.setItem('iglootickets_launch_auth_v1', 'true');
+                currentUser = null;
+            } else {
+                const savedUserId = localStorage.getItem('iglootickets_session_user_id') || sessionStorage.getItem('iglootickets_session_user_id');
+                if (savedUserId) {
+                    currentUser = usersState.find(u => u.id === savedUserId && u.status === 'ACTIVE');
+                } else {
+                    currentUser = null;
+                }
             }
-            if (!currentUser) {
-                // Default to Master Admin so user starts fully empowered
-                currentUser = usersState.find(u => u.role === 'MASTER_ADMIN') || usersState[0];
+
+            updateAuthUI();
+        }
+
+        function updateAuthUI() {
+            const authView = document.getElementById('auth-view');
+            const appDashboard = document.getElementById('app-dashboard');
+
+            if (currentUser && currentUser.status === 'ACTIVE') {
+                if (authView) authView.classList.add('hidden');
+                if (appDashboard) appDashboard.classList.remove('hidden');
+                updateUserProfileUI();
+                renderNavigation();
+                renderEventsDropdown();
+                renderActiveView();
+                updateStats();
+            } else {
+                currentUser = null;
+                if (appDashboard) appDashboard.classList.add('hidden');
+                if (authView) authView.classList.remove('hidden');
+                if (typeof scanner !== 'undefined' && scanner.running) {
+                    stopCamera();
+                }
             }
-            updateUserProfileUI();
         }
 
         function updateUserProfileUI() {
@@ -2215,6 +2360,13 @@
             mobileProfileBtn.className = "px-2 py-1 text-[11px] font-medium rounded text-indigo-400 hover:text-indigo-300 transition-all flex items-center space-x-1";
             mobileProfileBtn.innerHTML = `<i class="fa-solid fa-user-gear"></i> <span>Profile</span>`;
             mobileStrip.appendChild(mobileProfileBtn);
+
+            // Mobile Sign Out button
+            const mobileLogoutBtn = document.createElement('button');
+            mobileLogoutBtn.onclick = handleSignOut;
+            mobileLogoutBtn.className = "px-2 py-1 text-[11px] font-medium rounded text-red-400 hover:text-red-300 transition-all flex items-center space-x-1";
+            mobileLogoutBtn.innerHTML = `<i class="fa-solid fa-arrow-right-from-bracket"></i> <span>Sign Out</span>`;
+            mobileStrip.appendChild(mobileLogoutBtn);
 
             // Switch to the first allowable tab for this role
             switchTab(tabs[0].id);
@@ -2369,11 +2521,38 @@
            6. LOGIN & ROLE SWITCHING ACTIONS
            ========================================================================= */
         function openLoginModal() {
-            document.getElementById('login-modal').classList.remove('hidden');
+            handleSignOut();
         }
 
         function closeLoginModal() {
-            document.getElementById('login-modal').classList.add('hidden');
+            // Deprecated: Auth view is now a dedicated full screen page
+        }
+
+        function handleSignOut() {
+            currentUser = null;
+            localStorage.removeItem('iglootickets_session_user_id');
+            localStorage.removeItem('eventshield_session_user_id');
+            sessionStorage.removeItem('iglootickets_session_user_id');
+            if (typeof scanner !== 'undefined' && scanner.running) {
+                stopCamera();
+            }
+            updateAuthUI();
+            const pwdInp = document.getElementById('login-password');
+            if (pwdInp) pwdInp.value = '';
+            notify("You have signed out.", "ok", 2500);
+        }
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (icon) icon.className = 'fa-solid fa-eye-slash text-xs text-indigo-400';
+            } else {
+                input.type = 'password';
+                if (icon) icon.className = 'fa-solid fa-eye text-xs text-gray-500';
+            }
         }
 
         function setAuthTab(tab) {
@@ -2383,15 +2562,15 @@
             const pinForm = document.getElementById('pin-login-form');
 
             if (tab === 'staff') {
-                staffBtn.className = "flex-1 py-1.5 font-semibold rounded-lg bg-indigo-600 text-white";
-                pinBtn.className = "flex-1 py-1.5 font-semibold rounded-lg text-gray-400 hover:text-white";
-                staffForm.classList.remove('hidden');
-                pinForm.classList.add('hidden');
+                if (staffBtn) staffBtn.className = "flex-1 py-2 font-semibold rounded-xl bg-indigo-600 text-white transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5";
+                if (pinBtn) pinBtn.className = "flex-1 py-2 font-semibold rounded-xl text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5";
+                if (staffForm) staffForm.classList.remove('hidden');
+                if (pinForm) pinForm.classList.add('hidden');
             } else {
-                pinBtn.className = "flex-1 py-1.5 font-semibold rounded-lg bg-emerald-600 text-white";
-                staffBtn.className = "flex-1 py-1.5 font-semibold rounded-lg text-gray-400 hover:text-white";
-                pinForm.classList.remove('hidden');
-                staffForm.classList.add('hidden');
+                if (pinBtn) pinBtn.className = "flex-1 py-2 font-semibold rounded-xl bg-emerald-600 text-white transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5";
+                if (staffBtn) staffBtn.className = "flex-1 py-2 font-semibold rounded-xl text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5";
+                if (pinForm) pinForm.classList.remove('hidden');
+                if (staffForm) staffForm.classList.add('hidden');
             }
         }
 
@@ -2431,11 +2610,13 @@
 
             staffLoginAttempts = 0;
             currentUser = user;
-            localStorage.setItem('iglootickets_session_user_id', currentUser.id);
-            updateUserProfileUI();
-            renderNavigation();
-            renderEventsDropdown();
-            closeLoginModal();
+            const rememberMe = document.getElementById('auth-remember-me');
+            if (!rememberMe || rememberMe.checked) {
+                localStorage.setItem('iglootickets_session_user_id', currentUser.id);
+            } else {
+                sessionStorage.setItem('iglootickets_session_user_id', currentUser.id);
+            }
+            updateAuthUI();
             notify(`Welcome back, ${currentUser.fullName || currentUser.username}!`, 'ok');
         }
 
@@ -2487,12 +2668,9 @@
 
             currentUser = scannerUser;
             localStorage.setItem('iglootickets_session_user_id', currentUser.id);
-            updateUserProfileUI();
-            renderNavigation();
-            renderEventsDropdown();
-            closeLoginModal();
-            notify(`Gate Scanner Unlocked for ${targetEvent.name}!`, 'ok');
+            updateAuthUI();
             switchTab('scanner');
+            notify(`Gate Scanner Unlocked for ${targetEvent.name}!`, 'ok');
         }
 
         function quickLoginRole(roleName) {
@@ -2503,10 +2681,7 @@
             }
             currentUser = user;
             localStorage.setItem('iglootickets_session_user_id', currentUser.id);
-            updateUserProfileUI();
-            renderNavigation();
-            renderEventsDropdown();
-            closeLoginModal();
+            updateAuthUI();
             notify(`Logged in as ${currentUser.fullName} (${currentUser.role})`, 'ok');
         }
 

@@ -1,9 +1,9 @@
 /**
- * EventShield QR - Progressive Web App Service Worker
+ * IglooTickets - Progressive Web App Service Worker
  * Enables 100% Offline Scanning, CDN Asset Caching, and Background Sync
  */
 
-const CACHE_NAME = 'eventshield-v2.6.0';
+const CACHE_NAME = 'iglootickets-v2.6.1';
 const STATIC_ASSETS = [
     './',
     './index.html',

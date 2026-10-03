@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EventShield QR - Enterprise Event Ticketing & Mobile Scanner</title>
+    <title>IglooTickets - Enterprise Event Ticketing & Mobile Scanner</title>
     
     <!-- PWA & Mobile Web App Manifest -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#080c16">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="EventShield">
+    <meta name="apple-mobile-web-app-title" content="IglooTickets">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="apple-touch-icon" href="icon.svg">
     
@@ -149,7 +149,7 @@
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <span class="text-base sm:text-lg font-bold tracking-tight text-white truncate">EventShield</span>
+                            <span class="text-base sm:text-lg font-bold tracking-tight text-white truncate">IglooTickets</span>
                             <span id="header-mode-badge" onclick="openDatabaseModal()" class="cursor-pointer text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 transition-all flex items-center gap-1">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                                 <span id="header-mode-text">Demo Mode</span>
@@ -832,7 +832,7 @@
     <!-- ========================================================================= -->
     <footer class="glass-panel border-t border-gray-800/80 py-4 mt-auto">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-            <span>EventShield QR Core &copy; 2026 &bull; Multi-Role Access Control</span>
+            <span>IglooTickets Core &copy; 2026 &bull; Multi-Role Access Control</span>
             <div class="flex items-center gap-3">
                 <span class="text-gray-400 flex items-center gap-1">
                     <i class="fa-solid fa-lock text-emerald-400"></i> Single-Use Cryptographic QR
@@ -860,7 +860,7 @@
                 <div class="inline-flex p-3 bg-indigo-600/10 text-indigo-400 rounded-2xl border border-indigo-500/20 mb-2">
                     <i class="fa-solid fa-user-shield text-2xl"></i>
                 </div>
-                <h3 class="text-lg font-bold text-white">EventShield Access Portal</h3>
+                <h3 class="text-lg font-bold text-white">IglooTickets Access Portal</h3>
                 <p class="text-xs text-gray-400">Select login mode or click a 1-click test role below.</p>
             </div>
 
@@ -1271,7 +1271,7 @@
         let currentScannerMode = 'ENTRANCE';
 
         // IndexedDB Offline Cache Engine
-        const IDB_NAME = 'EventShieldDB';
+        const IDB_NAME = 'IglooTicketsDB';
         const IDB_VERSION = 1;
         let dbInstance = null;
 
@@ -1395,7 +1395,7 @@
         async function queueOfflineScan(scanRecord) {
             if (!dbInstance) {
                 offlineScanQueue.push(scanRecord);
-                localStorage.setItem('eventshield_offline_queue', JSON.stringify(offlineScanQueue));
+                localStorage.setItem('iglootickets_offline_queue', JSON.stringify(offlineScanQueue));
                 updateOfflineQueueCount();
                 return;
             }
@@ -1413,7 +1413,7 @@
         async function getQueuedScans() {
             if (!dbInstance) {
                 try {
-                    return JSON.parse(localStorage.getItem('eventshield_offline_queue') || '[]');
+                    return JSON.parse(localStorage.getItem('iglootickets_offline_queue') || localStorage.getItem('eventshield_offline_queue') || '[]');
                 } catch (e) { return []; }
             }
             return new Promise((resolve) => {
@@ -1431,7 +1431,7 @@
         async function deleteQueuedScan(id) {
             if (!dbInstance) {
                 offlineScanQueue = offlineScanQueue.filter(item => item.id !== id);
-                localStorage.setItem('eventshield_offline_queue', JSON.stringify(offlineScanQueue));
+                localStorage.setItem('iglootickets_offline_queue', JSON.stringify(offlineScanQueue));
                 updateOfflineQueueCount();
                 return;
             }
@@ -1453,6 +1453,7 @@
         async function clearQueuedScans() {
             if (!dbInstance) {
                 offlineScanQueue = [];
+                localStorage.removeItem('iglootickets_offline_queue');
                 localStorage.removeItem('eventshield_offline_queue');
                 updateOfflineQueueCount();
                 return;
@@ -1619,25 +1620,25 @@
         function initStorageAndData() {
             try {
                 // Load or seed events
-                const storedEvents = localStorage.getItem('eventshield_events');
+                const storedEvents = localStorage.getItem('iglootickets_events') || localStorage.getItem('eventshield_events');
                 eventsState = storedEvents ? JSON.parse(storedEvents) : APP_CONFIG.defaultEvents;
 
                 // Load or seed users
-                const storedUsers = localStorage.getItem('eventshield_users');
+                const storedUsers = localStorage.getItem('iglootickets_users') || localStorage.getItem('eventshield_users');
                 usersState = storedUsers ? JSON.parse(storedUsers) : APP_CONFIG.defaultUsers;
 
                 // Load or seed tickets
-                const storedTickets = localStorage.getItem('eventshield_tickets');
+                const storedTickets = localStorage.getItem('iglootickets_tickets') || localStorage.getItem('eventshield_tickets');
                 ticketsState = storedTickets ? JSON.parse(storedTickets) : APP_CONFIG.defaultTickets;
 
                 // Load audit logs
-                const storedLogs = localStorage.getItem('eventshield_audit_logs');
+                const storedLogs = localStorage.getItem('iglootickets_audit_logs') || localStorage.getItem('eventshield_audit_logs');
                 auditLogsState = storedLogs ? JSON.parse(storedLogs) : [];
 
-                duplicateCount = parseInt(localStorage.getItem('eventshield_dup_count') || '0', 10);
+                duplicateCount = parseInt(localStorage.getItem('iglootickets_dup_count') || localStorage.getItem('eventshield_dup_count') || '0', 10);
 
                 // Set initial active event
-                activeEventId = localStorage.getItem('eventshield_active_event_id') || eventsState[0]?.id;
+                activeEventId = localStorage.getItem('iglootickets_active_event_id') || localStorage.getItem('eventshield_active_event_id') || eventsState[0]?.id;
             } catch (e) {
                 console.error("Storage load error:", e);
                 eventsState = APP_CONFIG.defaultEvents;
@@ -1649,23 +1650,23 @@
 
         function saveStateToLocal() {
             try {
-                localStorage.setItem('eventshield_events', JSON.stringify(eventsState));
-                localStorage.setItem('eventshield_users', JSON.stringify(usersState));
-                localStorage.setItem('eventshield_tickets', JSON.stringify(ticketsState));
-                localStorage.setItem('eventshield_audit_logs', JSON.stringify(auditLogsState));
-                localStorage.setItem('eventshield_dup_count', duplicateCount.toString());
-                if (activeEventId) localStorage.setItem('eventshield_active_event_id', activeEventId);
+                localStorage.setItem('iglootickets_events', JSON.stringify(eventsState));
+                localStorage.setItem('iglootickets_users', JSON.stringify(usersState));
+                localStorage.setItem('iglootickets_tickets', JSON.stringify(ticketsState));
+                localStorage.setItem('iglootickets_audit_logs', JSON.stringify(auditLogsState));
+                localStorage.setItem('iglootickets_dup_count', duplicateCount.toString());
+                if (activeEventId) localStorage.setItem('iglootickets_active_event_id', activeEventId);
             } catch (e) {
                 console.error("State save error:", e);
             }
         }
 
         async function initSupabaseClient() {
-            const url = (APP_CONFIG.supabaseUrl && APP_CONFIG.supabaseUrl.trim()) || localStorage.getItem('eventshield_sb_url');
-            const key = (APP_CONFIG.supabaseAnonKey && APP_CONFIG.supabaseAnonKey.trim()) || localStorage.getItem('eventshield_sb_key');
+            const url = (APP_CONFIG.supabaseUrl && APP_CONFIG.supabaseUrl.trim()) || localStorage.getItem('iglootickets_sb_url') || localStorage.getItem('eventshield_sb_url');
+            const key = (APP_CONFIG.supabaseAnonKey && APP_CONFIG.supabaseAnonKey.trim()) || localStorage.getItem('iglootickets_sb_key') || localStorage.getItem('eventshield_sb_key');
             
             // If URL & Key are hardcoded in config.js, automatically default to SUPABASE mode
-            let mode = localStorage.getItem('eventshield_mode');
+            let mode = localStorage.getItem('iglootickets_mode') || localStorage.getItem('eventshield_mode');
             if (!mode) {
                 mode = (url && key) ? (APP_CONFIG.mode || 'SUPABASE') : 'DEMO';
             } else if (APP_CONFIG.supabaseUrl && APP_CONFIG.supabaseAnonKey && mode !== 'DEMO') {
@@ -1938,7 +1939,7 @@
            4. SESSION, AUTHENTICATION & ROLE MANAGEMENT
            ========================================================================= */
         function initSession() {
-            const savedUserId = localStorage.getItem('eventshield_session_user_id');
+            const savedUserId = localStorage.getItem('iglootickets_session_user_id') || localStorage.getItem('eventshield_session_user_id');
             if (savedUserId) {
                 currentUser = usersState.find(u => u.id === savedUserId);
             }
@@ -2134,7 +2135,7 @@
 
         function handleEventSwitch(newEventId) {
             activeEventId = newEventId;
-            localStorage.setItem('eventshield_active_event_id', activeEventId);
+            localStorage.setItem('iglootickets_active_event_id', activeEventId);
             notify(`Active Event Switched: ${getActiveEvent().name}`, 'ok');
             renderRegistryTable();
             renderQuickTestButtons();
@@ -2238,7 +2239,7 @@
 
             staffLoginAttempts = 0;
             currentUser = user;
-            localStorage.setItem('eventshield_session_user_id', currentUser.id);
+            localStorage.setItem('iglootickets_session_user_id', currentUser.id);
             updateUserProfileUI();
             renderNavigation();
             renderEventsDropdown();
@@ -2280,7 +2281,7 @@
 
             // Create or switch to gate scanner session bound to this event
             activeEventId = targetEvent.id;
-            localStorage.setItem('eventshield_active_event_id', activeEventId);
+            localStorage.setItem('iglootickets_active_event_id', activeEventId);
 
             let scannerUser = usersState.find(u => u.role === 'TICKET_SCANNER');
             if (!scannerUser) {
@@ -2293,7 +2294,7 @@
             }
 
             currentUser = scannerUser;
-            localStorage.setItem('eventshield_session_user_id', currentUser.id);
+            localStorage.setItem('iglootickets_session_user_id', currentUser.id);
             updateUserProfileUI();
             renderNavigation();
             renderEventsDropdown();
@@ -2309,7 +2310,7 @@
                 return;
             }
             currentUser = user;
-            localStorage.setItem('eventshield_session_user_id', currentUser.id);
+            localStorage.setItem('iglootickets_session_user_id', currentUser.id);
             updateUserProfileUI();
             renderNavigation();
             renderEventsDropdown();
@@ -3801,7 +3802,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `EventShield_Audit_${getActiveEvent().code}_${Date.now()}.csv`;
+            a.download = `IglooTickets_Audit_${getActiveEvent().code}_${Date.now()}.csv`;
             a.click();
             notify("Audit log CSV exported!", "ok");
         }
@@ -4209,7 +4210,7 @@
 
             closeCloneEventModal();
             activeEventId = newEvent.id;
-            localStorage.setItem('eventshield_active_event_id', activeEventId);
+            localStorage.setItem('iglootickets_active_event_id', activeEventId);
             renderEventsDropdown();
             renderEventsManager();
             updateStats();
@@ -4231,8 +4232,8 @@
         }
 
         /* =========================================================================
-           14. QR INSPECT MODAL ACTIONS
-           ========================================================================= */
+            14. QR INSPECT MODAL ACTIONS
+            ========================================================================= */
         function openQrModal(token) {
             const ticket = ticketsState.find(t => t.token === token);
             if (!ticket) return;
@@ -4275,11 +4276,11 @@
         }
 
         /* =========================================================================
-           15. CLOUD DATABASE MODAL ACTIONS & SQL SCHEMA COPY
-           ========================================================================= */
+            15. CLOUD DATABASE MODAL ACTIONS & SQL SCHEMA COPY
+            ========================================================================= */
         function openDatabaseModal() {
-            document.getElementById('sb-url-input').value = localStorage.getItem('eventshield_sb_url') || APP_CONFIG.supabaseUrl || '';
-            document.getElementById('sb-key-input').value = localStorage.getItem('eventshield_sb_key') || APP_CONFIG.supabaseAnonKey || '';
+            document.getElementById('sb-url-input').value = localStorage.getItem('iglootickets_sb_url') || localStorage.getItem('eventshield_sb_url') || APP_CONFIG.supabaseUrl || '';
+            document.getElementById('sb-key-input').value = localStorage.getItem('iglootickets_sb_key') || localStorage.getItem('eventshield_sb_key') || APP_CONFIG.supabaseAnonKey || '';
             document.getElementById('database-modal').classList.remove('hidden');
         }
 
@@ -4306,9 +4307,9 @@
                     return;
                 }
 
-                localStorage.setItem('eventshield_sb_url', url);
-                localStorage.setItem('eventshield_sb_key', key);
-                localStorage.setItem('eventshield_mode', 'SUPABASE');
+                localStorage.setItem('iglootickets_sb_url', url);
+                localStorage.setItem('iglootickets_sb_key', key);
+                localStorage.setItem('iglootickets_mode', 'SUPABASE');
 
                 supabaseClient = testClient;
                 isSupabaseConnected = true;
@@ -4324,14 +4325,14 @@
         }
 
         function toggleDemoMode() {
-            const curMode = localStorage.getItem('eventshield_mode') || 'DEMO';
+            const curMode = localStorage.getItem('iglootickets_mode') || localStorage.getItem('eventshield_mode') || 'DEMO';
             if (curMode === 'SUPABASE') {
-                localStorage.setItem('eventshield_mode', 'DEMO');
+                localStorage.setItem('iglootickets_mode', 'DEMO');
                 isSupabaseConnected = false;
                 setConnectionBadge(false);
                 notify("Switched to Local Demo Mode.", "ok");
             } else {
-                localStorage.setItem('eventshield_mode', 'SUPABASE');
+                localStorage.setItem('iglootickets_mode', 'SUPABASE');
                 initSupabaseClient();
             }
             closeDatabaseModal();
@@ -4339,7 +4340,7 @@
 
         function copySqlSchemaToClipboard() {
             const schemaSql = `-- =========================================================================
--- EventShield QR - Supabase Database Schema (v2.6.0)
+-- IglooTickets - Supabase Database Schema (v2.6.1)
 -- 100% Free PostgreSQL & Realtime Backend Setup
 -- Features: Security RPCs, Atomic Check-In, Pass-Out / Re-Entry, Event Cloning, Capacity Headcount
 -- Instructions: Paste this entire script into your Supabase SQL Editor and click RUN.
@@ -4746,7 +4747,7 @@ VALUES
 (
     'b0000000-0000-0000-0000-000000000001',
     'master_admin',
-    'superadmin@eventshield.io',
+    'superadmin@iglootickets.io',
     'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
     'MASTER_ADMIN',
     '[]'::jsonb,
@@ -4780,13 +4781,8 @@ VALUES
     'Gate 1 Scanner Station'
 ) ON CONFLICT (username) DO NOTHING;
 
--- Seed Sample Tickets
-INSERT INTO public.tickets (event_id, token, attendee_name, attendee_email, tier, status)
-VALUES 
-('a0000000-0000-0000-0000-000000000001', 'ed321a4f-8891-49b2-a42e-111111111111', 'Alex Johnson', 'alex.j@cyber.com', 'VIP Platinum Pass', 'VALID'),
-('a0000000-0000-0000-0000-000000000001', 'b83d99fa-71a2-4a02-b21a-222222222222', 'Elena Rostova', 'elena.r@speakers.net', 'Speaker / VIP', 'VALID'),
-('a0000000-0000-0000-0000-000000000001', 'c52e88bb-12a1-4209-a111-333333333333', 'Marcus Vance', 'marcus.v@media.org', 'General Delegate', 'VALID')
-ON CONFLICT (token) DO NOTHING;
+-- Production Slate: Clean tickets table ready for real attendee registration.
+-- Attendees can be registered via the IglooTickets web portal or bulk CSV import.
 `;
 
             navigator.clipboard.writeText(schemaSql).then(() => {

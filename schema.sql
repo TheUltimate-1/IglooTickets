@@ -1,5 +1,5 @@
 -- =========================================================================
--- EventShield QR - Supabase Database Schema (v2.6.0)
+-- IglooTickets - Supabase Database Schema (v2.6.1)
 -- 100% Free PostgreSQL & Realtime Backend Setup
 -- Features: Security RPCs, Atomic Check-In, Pass-Out / Re-Entry, Event Cloning, Capacity Headcount
 -- Instructions: Paste this entire script into your Supabase SQL Editor and click RUN.
@@ -406,7 +406,7 @@ VALUES
 (
     'b0000000-0000-0000-0000-000000000001',
     'master_admin',
-    'superadmin@eventshield.io',
+    'superadmin@iglootickets.io',
     'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
     'MASTER_ADMIN',
     '[]'::jsonb,
@@ -440,10 +440,5 @@ VALUES
     'Gate 1 Scanner Station'
 ) ON CONFLICT (username) DO NOTHING;
 
--- Seed Sample Tickets
-INSERT INTO public.tickets (event_id, token, attendee_name, attendee_email, tier, status)
-VALUES 
-('a0000000-0000-0000-0000-000000000001', 'ed321a4f-8891-49b2-a42e-111111111111', 'Alex Johnson', 'alex.j@cyber.com', 'VIP Platinum Pass', 'VALID'),
-('a0000000-0000-0000-0000-000000000001', 'b83d99fa-71a2-4a02-b21a-222222222222', 'Elena Rostova', 'elena.r@speakers.net', 'Speaker / VIP', 'VALID'),
-('a0000000-0000-0000-0000-000000000001', 'c52e88bb-12a1-4209-a111-333333333333', 'Marcus Vance', 'marcus.v@media.org', 'General Delegate', 'VALID')
-ON CONFLICT (token) DO NOTHING;
+-- Production Slate: Clean tickets table ready for real attendee registration.
+-- Attendees can be registered via the IglooTickets web portal or bulk CSV import.

@@ -1,6 +1,6 @@
 {
-  "name": "EventShield QR - Enterprise Ticketing & Scanner",
-  "short_name": "EventShield",
+  "name": "IglooTickets - Enterprise Ticketing & Scanner",
+  "short_name": "IglooTickets",
   "description": "Multi-role event e-ticketing platform with instant anti-duplicate camera verification and offline sync.",
   "start_url": "./index.html",
   "scope": "./",

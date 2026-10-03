@@ -16,8 +16,8 @@ const APP_CONFIG = {
     mode: 'SUPABASE',
 
     // App Metadata
-    version: '2.6.0',
-    appName: 'EventShield QR Enterprise',
+    version: '2.6.1',
+    appName: 'IglooTickets Enterprise',
 
     // Default Seed Events (used for Demo Mode or initial sync)
     defaultEvents: [
@@ -32,18 +32,6 @@ const APP_CONFIG = {
             capacity: 500,
             status: 'ACTIVE',
             createdAt: new Date().toISOString()
-        },
-        {
-            id: 'a0000000-0000-0000-0000-000000000002',
-            name: 'CyberDefend Security Expo',
-            code: 'CYBER26',
-            date: '2026-12-04',
-            location: 'Exhibition Center - Pavilion 3',
-            gatePin: '4321',
-            tiers: ['Security Officer', 'Exhibitor All-Access', 'Standard Attendee'],
-            capacity: 350,
-            status: 'ACTIVE',
-            createdAt: new Date().toISOString()
         }
     ],
 
@@ -53,7 +41,7 @@ const APP_CONFIG = {
         {
             id: 'b0000000-0000-0000-0000-000000000001',
             username: 'master_admin',
-            email: 'master@eventshield.io',
+            email: 'master@iglootickets.com',
             passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
             role: 'MASTER_ADMIN',
             fullName: 'Alexander Vance (Master Director)',
@@ -68,7 +56,7 @@ const APP_CONFIG = {
             passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
             role: 'EVENT_ADMIN',
             fullName: 'Sarah Connor (Event Manager)',
-            assignedEventIds: ['a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002'],
+            assignedEventIds: ['a0000000-0000-0000-0000-000000000001'],
             status: 'ACTIVE',
             createdAt: new Date().toISOString()
         },
@@ -96,51 +84,8 @@ const APP_CONFIG = {
         }
     ],
 
-    // Default Seed Tickets
-    defaultTickets: [
-        {
-            id: 'c0000000-0000-0000-0000-000000000001',
-            eventId: 'a0000000-0000-0000-0000-000000000001',
-            token: 'ed321a4f-8891-49b2-a42e-111111111111',
-            attendeeName: 'Alex Johnson',
-            attendeeEmail: 'alex.j@enterprise.com',
-            tier: 'VIP Platinum Pass',
-            status: 'VALID',
-            issuedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-            issuedBy: 'Marcus Vance',
-            scannedAt: null,
-            scannedBy: null,
-            scannedGate: null
-        },
-        {
-            id: 'c0000000-0000-0000-0000-000000000002',
-            eventId: 'a0000000-0000-0000-0000-000000000001',
-            token: 'b83d99fa-71a2-4a02-b21a-222222222222',
-            attendeeName: 'Elena Rostova',
-            attendeeEmail: 'elena.rostova@speakers.net',
-            tier: 'Speaker / VIP',
-            status: 'VALID',
-            issuedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-            issuedBy: 'Marcus Vance',
-            scannedAt: null,
-            scannedBy: null,
-            scannedGate: null
-        },
-        {
-            id: 'c0000000-0000-0000-0000-000000000003',
-            eventId: 'a0000000-0000-0000-0000-000000000001',
-            token: 'c52e88bb-12a1-4209-a111-333333333333',
-            attendeeName: 'Devon Miles',
-            attendeeEmail: 'devon@pressmedia.com',
-            tier: 'Press & Media',
-            status: 'VALID',
-            issuedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-            issuedBy: 'Sarah Connor',
-            scannedAt: null,
-            scannedBy: null,
-            scannedGate: null
-        }
-    ]
+    // Default Seed Tickets (Clean slate for production launch)
+    defaultTickets: []
 };
 
 // Helper: Secure SHA-256 string hash using browser Web Crypto API

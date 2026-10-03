@@ -1,4 +1,4 @@
-# 🎟️ IglooTickets Enterprise &bull; High-Performance Event E-Ticketing & Mobile Scanner
+# 🎟️ IglooTickets &bull; Events E-Ticketing Manager
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FTheUltimate-1%2FIglooTickets)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -6,7 +6,7 @@
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready-purple.svg)](manifest.json)
 [![Database: Supabase](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-3ECF8E.svg)](schema.sql)
 
-**IglooTickets** is a lightweight, zero-cost, enterprise-grade event e-ticketing and access control platform. It features cryptographic single-use QR codes, multi-role staff authentication, camera hardware scanning with anti-duplicate flash alerts, bulk CSV imports, canvas-rendered PDF ticket issuance, real-time PostgreSQL database synchronization, and full offline scanning with automated background sync.
+**IglooTickets** is a lightweight event e-ticketing and access control platform. It features single-use QR codes, multi-role staff authentication, camera hardware scanning with anti-duplicate flash alerts, bulk CSV imports, canvas-rendered PDF ticket issuance, real-time PostgreSQL database synchronization, and full offline scanning with automated background sync.
 
 ---
 
@@ -34,15 +34,12 @@ No backend configuration or local build steps are required.
    cd IglooTickets
    ```
 2. Open `index.html` in your browser (Chrome, Safari, Edge, Firefox).
-3. The application runs immediately with cloud database sync, pre-configured with the default event and Master Admin.
-4. Sign in with the pre-registered **Master Admin**:
-   - 👑 **Master Admin**: `nethil` or `nethil2008@gmail.com` / `Qwerty123`
-   - Additional staff roles (Event Admins, Ticketing Agents, Gate Scanners) can be provisioned at any time by Master Admin from the **Global Staff** tab.
-   - Quick Gate Scanner access is also available via Event Gate Code and PIN (e.g., Code `TECH26`, PIN `7788`).
+3. Sign in with the Master Admin account created from `schema.sql` / `config.js` (credentials are shared privately, not published here).
+4. Additional staff roles (Event Admins, Ticketing Agents, Gate Scanners) can be provisioned by the Master Admin from the **Global Staff** tab. Change the Master Admin password after first sign-in.
 
 ---
 
-## ✨ Key Enterprise Features
+## ✨ Key Features
 
 ### 1. 🛡️ Database Hardening & Row Locks
 * **PostgreSQL Atomic RPCs**: High-throughput validation and check-in procedures (`check_in_ticket_rpc`, `pass_out_ticket_rpc`, `clone_event_rpc`) execute server-side with `FOR UPDATE` row-level locks, eliminating race conditions when multiple turnstiles scan simultaneously.

@@ -1,5 +1,5 @@
 {
-  "name": "IglooTickets - Enterprise Ticketing & Scanner",
+  "name": "IglooTickets - Events E-Ticketing Manager",
   "short_name": "IglooTickets",
   "description": "Multi-role event e-ticketing platform with instant anti-duplicate camera verification and offline sync.",
   "start_url": "./index.html",

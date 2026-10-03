@@ -45,7 +45,7 @@ const APP_CONFIG = {
     // SHA-256('password123') = ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f
     defaultUsers: [
         {
-            id: 'u0000000-0000-0000-0000-000000000001',
+            id: 'b0000000-0000-0000-0000-000000000001',
             username: 'master_admin',
             email: 'master@eventshield.io',
             passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
@@ -56,7 +56,7 @@ const APP_CONFIG = {
             createdAt: new Date().toISOString()
         },
         {
-            id: 'u0000000-0000-0000-0000-000000000002',
+            id: 'b0000000-0000-0000-0000-000000000002',
             username: 'event_admin',
             email: 'sarah.event@techhorizon.com',
             passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
@@ -67,7 +67,7 @@ const APP_CONFIG = {
             createdAt: new Date().toISOString()
         },
         {
-            id: 'u0000000-0000-0000-0000-000000000003',
+            id: 'b0000000-0000-0000-0000-000000000003',
             username: 'agent_marcus',
             email: 'marcus.tickets@convention.org',
             passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
@@ -78,7 +78,7 @@ const APP_CONFIG = {
             createdAt: new Date().toISOString()
         },
         {
-            id: 'u0000000-0000-0000-0000-000000000004',
+            id: 'b0000000-0000-0000-0000-000000000004',
             username: 'gate_scanner',
             email: '', // Optional email
             passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
@@ -93,7 +93,7 @@ const APP_CONFIG = {
     // Default Seed Tickets
     defaultTickets: [
         {
-            id: 't0000000-0000-0000-0000-000000000001',
+            id: 'c0000000-0000-0000-0000-000000000001',
             eventId: 'a0000000-0000-0000-0000-000000000001',
             token: 'ed321a4f-8891-49b2-a42e-111111111111',
             attendeeName: 'Alex Johnson',
@@ -107,7 +107,7 @@ const APP_CONFIG = {
             scannedGate: null
         },
         {
-            id: 't0000000-0000-0000-0000-000000000002',
+            id: 'c0000000-0000-0000-0000-000000000002',
             eventId: 'a0000000-0000-0000-0000-000000000001',
             token: 'b83d99fa-71a2-4a02-b21a-222222222222',
             attendeeName: 'Elena Rostova',
@@ -121,7 +121,7 @@ const APP_CONFIG = {
             scannedGate: null
         },
         {
-            id: 't0000000-0000-0000-0000-000000000003',
+            id: 'c0000000-0000-0000-0000-000000000003',
             eventId: 'a0000000-0000-0000-0000-000000000001',
             token: 'c52e88bb-12a1-4209-a111-333333333333',
             attendeeName: 'Devon Miles',

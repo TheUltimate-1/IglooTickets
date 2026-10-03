@@ -104,7 +104,7 @@ VALUES (
 INSERT INTO public.app_users (id, username, email, password_hash, role, assigned_event_ids, full_name)
 VALUES 
 (
-    'u0000000-0000-0000-0000-000000000001',
+    'b0000000-0000-0000-0000-000000000001',
     'master_admin',
     'superadmin@eventshield.io',
     'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
@@ -113,7 +113,7 @@ VALUES
     'Global System Director'
 ),
 (
-    'u0000000-0000-0000-0000-000000000002',
+    'b0000000-0000-0000-0000-000000000002',
     'event_admin',
     'admin@techhorizon.com',
     'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
@@ -122,7 +122,7 @@ VALUES
     'Event Coordinator Sarah'
 ),
 (
-    'u0000000-0000-0000-0000-000000000003',
+    'b0000000-0000-0000-0000-000000000003',
     'agent_marcus',
     'marcus@tickets.org',
     'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',
@@ -131,7 +131,7 @@ VALUES
     'Ticketing Desk Marcus'
 ),
 (
-    'u0000000-0000-0000-0000-000000000004',
+    'b0000000-0000-0000-0000-000000000004',
     'gate_scanner',
     NULL,
     'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f',

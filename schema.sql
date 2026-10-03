@@ -63,8 +63,21 @@ ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS passed_out_at TIMESTAMPTZ;
 ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS pass_out_gate TEXT;
 ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS re_entry_count INT DEFAULT 0;
 
-ALTER TABLE public.tickets DROP CONSTRAINT IF EXISTS tickets_status_check;
-ALTER TABLE public.tickets ADD CONSTRAINT tickets_status_check CHECK (status IN ('VALID', 'CHECKED_IN', 'CHECKED_OUT', 'REVOKED'));
+DO $$ 
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT conname 
+        FROM pg_constraint 
+        WHERE conrelid = 'public.tickets'::regclass AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%status%'
+    ) LOOP
+        EXECUTE 'ALTER TABLE public.tickets DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+    END LOOP;
+    ALTER TABLE public.tickets ADD CONSTRAINT tickets_status_check CHECK (status IN ('VALID', 'CHECKED_IN', 'CHECKED_OUT', 'REVOKED'));
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END $$;
 
 -- 5. Audit & Scan Verification Logs Table
 CREATE TABLE IF NOT EXISTS public.audit_logs (
@@ -106,9 +119,25 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- Enable Realtime broadcasting on tickets and audit_logs
-ALTER PUBLICATION supabase_realtime ADD TABLE public.tickets;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
+-- Enable Realtime broadcasting safely (only if not already a member)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'tickets'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.tickets;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'audit_logs'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END $$;
 
 -- =========================================================================
 -- 7. 🛡️ SECURITY & ATOMIC DATABASE PROCEDURES (RPC)

@@ -17,13 +17,15 @@ CREATE TABLE IF NOT EXISTS public.events (
     location TEXT NOT NULL,
     gate_pin TEXT NOT NULL DEFAULT '1234', -- 4-digit PIN for quick scanner mobile entry
     tiers JSONB NOT NULL DEFAULT '["VIP General Access", "Standard Pass", "Speaker / Backstage", "Press / Media"]'::jsonb,
+    stations JSONB NOT NULL DEFAULT '["Gate 1 (Main Entrance)", "Gate 2 (VIP / Media)", "North Turnstile", "South Turnstile"]'::jsonb,
     capacity INT NOT NULL DEFAULT 500, -- Maximum venue capacity for live headcount tracking
     status TEXT NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, ARCHIVED
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure capacity column exists if upgrading from v1
+-- Ensure capacity and stations columns exist if upgrading from v1
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS capacity INT NOT NULL DEFAULT 500;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS stations JSONB DEFAULT '["Gate 1 (Main Entrance)", "Gate 2 (VIP / Media)", "North Turnstile", "South Turnstile"]'::jsonb;
 
 -- 3. App Users / Staff Table
 CREATE TABLE IF NOT EXISTS public.app_users (
@@ -325,7 +327,8 @@ CREATE OR REPLACE FUNCTION clone_event_rpc(
     p_new_id UUID DEFAULT NULL,
     p_new_pin TEXT DEFAULT NULL,
     p_new_capacity INT DEFAULT NULL,
-    p_new_tiers JSONB DEFAULT NULL
+    p_new_tiers JSONB DEFAULT NULL,
+    p_new_stations JSONB DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -348,7 +351,7 @@ BEGIN
     END IF;
 
     -- Insert cloned event with customized parameters or source defaults
-    INSERT INTO public.events (id, name, code, date, location, gate_pin, tiers, capacity, status)
+    INSERT INTO public.events (id, name, code, date, location, gate_pin, tiers, stations, capacity, status)
     VALUES (
         v_new_id,
         p_new_name,
@@ -357,6 +360,7 @@ BEGIN
         p_new_location,
         COALESCE(p_new_pin, v_source.gate_pin, '1234'),
         COALESCE(p_new_tiers, v_source.tiers, '["VIP Pass", "Standard Pass"]'::jsonb),
+        COALESCE(p_new_stations, v_source.stations, '["Gate 1 (Main Entrance)", "Gate 2 (VIP / Media)", "North Turnstile", "South Turnstile"]'::jsonb),
         COALESCE(p_new_capacity, v_source.capacity, 500),
         'ACTIVE'
     );
@@ -386,10 +390,10 @@ $$;
 -- Grant execution to public / anon for easy client RPC access
 GRANT EXECUTE ON FUNCTION check_in_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION pass_out_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB, JSONB) TO anon, authenticated, service_role;
 
 -- 8. Seed Initial Master Admin and Demo Event
-INSERT INTO public.events (id, name, code, date, location, gate_pin, tiers, capacity)
+INSERT INTO public.events (id, name, code, date, location, gate_pin, tiers, stations, capacity)
 VALUES (
     'a0000000-0000-0000-0000-000000000001',
     'TechHorizon Global Summit 2026',
@@ -398,6 +402,7 @@ VALUES (
     'Grand Metropolitan Convention Center',
     '7788',
     '["VIP Platinum Pass", "General Delegate", "Speaker / VIP", "Press & Media"]'::jsonb,
+    '["Gate 1 (Main Entrance)", "Gate 2 (VIP / Media)", "East Turnstile", "West Gate"]'::jsonb,
     500
 ) ON CONFLICT (code) DO NOTHING;
 

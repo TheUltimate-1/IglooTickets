@@ -17,7 +17,7 @@ const APP_CONFIG = {
 
     // App Metadata
     version: '2.6.1',
-    appName: 'IglooTickets Enterprise',
+    appName: 'IglooTickets',
 
     // Default Seed Events (used for Demo Mode or initial sync)
     defaultEvents: [
@@ -29,6 +29,7 @@ const APP_CONFIG = {
             location: 'Metropolitan Convention Hall A',
             gatePin: '7788',
             tiers: ['VIP Platinum Pass', 'General Delegate', 'Speaker / VIP', 'Press & Media'],
+            stations: ['Gate 1 (Main Entrance)', 'Gate 2 (VIP / Media)', 'East Turnstile', 'West Gate'],
             capacity: 500,
             status: 'ACTIVE',
             createdAt: new Date().toISOString()

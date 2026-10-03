@@ -50,10 +50,10 @@ To sync scans and ticket issuances across multiple devices in real-time (e.g. mo
 4. This automatically creates the `events`, `app_users`, `tickets`, and `audit_logs` tables with indexes, RLS policies, and realtime broadcast publications.
 
 ### Step 3: Connect EventShield
-1. In your Supabase dashboard, click **Project Settings (gear icon) &rarr; API**.
-2. Copy your **Project URL** and **anon public API Key**.
+1. In your Supabase dashboard, click **Project Settings (gear icon) &rarr; API** (or **Data API**).
+2. Copy your **Project URL** and your **Publishable API key** (also called **anon public key**).
 3. In `index.html`, click the cloud icon (or `Demo Mode` badge) in the top bar to open the **Database Setup Modal**.
-4. Paste your Project URL and Anon Key, then click **Connect & Save**.
+4. Paste your Project URL and Publishable/Anon Key, then click **Connect & Save**.
 5. Your system is now connected to a live PostgreSQL cloud database with instant realtime multi-device sync!
 
 ---

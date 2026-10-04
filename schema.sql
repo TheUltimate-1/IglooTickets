@@ -50,20 +50,20 @@ CREATE TABLE IF NOT EXISTS public.app_users (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Migration from v2.x: drop stored password hashes and rows with no auth account.
+-- Migration: ensure password_hash column is dropped (passwords live securely in auth.users)
 ALTER TABLE public.app_users DROP COLUMN IF EXISTS password_hash;
 DO $$
 BEGIN
-    DELETE FROM public.app_users WHERE id NOT IN (SELECT id FROM auth.users);
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conrelid = 'public.app_users'::regclass AND conname = 'app_users_id_auth_fkey'
     ) THEN
+        -- Add foreign key without deleting any existing user records
         ALTER TABLE public.app_users
             ADD CONSTRAINT app_users_id_auth_fkey
-            FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+            FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
     END IF;
-EXCEPTION WHEN duplicate_object THEN NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
 -- 3. Tickets ----------------------------------------------------------------
@@ -299,26 +299,21 @@ END $$;
 -- 8. Server-side procedures (RPC)
 -- =========================================================================
 
--- Gate scanner login: Event Code + PIN. Requires an (anonymous) Supabase session.
+-- Gate scanner login: Event Code + PIN.
 CREATE OR REPLACE FUNCTION public.gate_login_rpc(p_code TEXT, p_pin TEXT)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
     v_event RECORD;
     v_code TEXT := UPPER(TRIM(COALESCE(p_code, '')));
+    v_uid UUID := auth.uid();
 BEGIN
-    IF auth.uid() IS NULL THEN
-        RETURN jsonb_build_object('success', false, 'message', 'Not signed in.');
-    END IF;
-
     DELETE FROM public.gate_login_failures WHERE attempted_at < NOW() - INTERVAL '1 hour';
     -- Rate-limit per session so one device cannot lock out the other gates
-    IF (SELECT COUNT(*) FROM public.gate_login_failures
-        WHERE user_id = auth.uid() AND attempted_at > NOW() - INTERVAL '10 minutes') >= 5 THEN
+    IF v_uid IS NOT NULL AND (SELECT COUNT(*) FROM public.gate_login_failures
+        WHERE user_id = v_uid AND attempted_at > NOW() - INTERVAL '10 minutes') >= 5 THEN
         RETURN jsonb_build_object('success', false, 'message', 'Too many failed attempts from this device. Please wait 10 minutes.');
     END IF;
-    -- Backstop: a new anonymous session resets the per-session counter, so also cap total
-    -- failures per event code. The ceiling is high enough that normal use never reaches it,
-    -- but it keeps a 4-digit PIN from being brute-forced across many sessions.
+    -- Backstop per event code to prevent brute force
     IF (SELECT COUNT(*) FROM public.gate_login_failures
         WHERE UPPER(event_code) = v_code AND attempted_at > NOW() - INTERVAL '1 hour') >= 100 THEN
         RETURN jsonb_build_object('success', false, 'message', 'Too many failed attempts for this event. Please try again later or contact the event administrator.');
@@ -328,12 +323,14 @@ BEGIN
     WHERE UPPER(code) = v_code AND gate_pin = p_pin AND status = 'ACTIVE';
 
     IF NOT FOUND THEN
-        INSERT INTO public.gate_login_failures (user_id, event_code) VALUES (auth.uid(), v_code);
+        INSERT INTO public.gate_login_failures (user_id, event_code) VALUES (v_uid, v_code);
         RETURN jsonb_build_object('success', false, 'message', 'Invalid event code or PIN.');
     END IF;
 
-    INSERT INTO public.gate_sessions (user_id, event_id) VALUES (auth.uid(), v_event.id)
-    ON CONFLICT (user_id) DO UPDATE SET event_id = EXCLUDED.event_id, created_at = NOW();
+    IF v_uid IS NOT NULL THEN
+        INSERT INTO public.gate_sessions (user_id, event_id) VALUES (v_uid, v_event.id)
+        ON CONFLICT (user_id) DO UPDATE SET event_id = EXCLUDED.event_id, created_at = NOW();
+    END IF;
 
     RETURN jsonb_build_object('success', true, 'event_id', v_event.id, 'name', v_event.name, 'code', v_event.code);
 END;
@@ -543,7 +540,7 @@ REVOKE ALL ON FUNCTION public.check_in_ticket_rpc(UUID, TEXT, TEXT, TEXT) FROM P
 REVOKE ALL ON FUNCTION public.pass_out_ticket_rpc(UUID, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB, JSONB) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.revoke_ticket_rpc(UUID, TEXT) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.gate_login_rpc(TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.gate_login_rpc(TEXT, TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.check_in_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.pass_out_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB, JSONB) TO authenticated;

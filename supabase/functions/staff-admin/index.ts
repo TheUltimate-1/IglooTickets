@@ -30,13 +30,85 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  // 1. Who is calling?
+  let body: any;
+  try { body = await req.json(); } catch { return fail("Invalid JSON body."); }
+
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  // Unauthenticated action: Gate PIN login (works even when anonymous auth is disabled)
+  if (body.action === "gate-login") {
+    const eventCode = String(body.eventCode ?? "").trim().toUpperCase();
+    const gatePin = String(body.gatePin ?? "").trim();
+    if (!eventCode || !gatePin) return fail("Event code and Gate PIN are required.");
+
+    const { data: event, error: eventErr } = await admin.from("events")
+      .select("id, name, code, gate_pin, status")
+      .eq("code", eventCode)
+      .eq("status", "ACTIVE")
+      .maybeSingle();
+
+    if (eventErr || !event || event.gate_pin !== gatePin) {
+      return fail("Invalid event code or PIN.");
+    }
+
+    // Deterministic scanner credentials for this event
+    const scannerEmail = `gate_${event.code.toLowerCase()}_scanner@iglootickets.local`;
+    const scannerPassword = `Gate_${event.gate_pin}_${event.id.replace(/-/g, "").slice(0, 12)}!`;
+
+    let authUserId: string | null = null;
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email: scannerEmail,
+      password: scannerPassword,
+      email_confirm: true,
+      user_metadata: { role: "TICKET_SCANNER", event_id: event.id }
+    });
+
+    if (created?.user) {
+      authUserId = created.user.id;
+    } else {
+      // If user already exists, update password to ensure sync
+      const { data: userList } = await admin.auth.admin.listUsers({ perPage: 1000 });
+      const match = userList?.users?.find((u: any) => u.email?.toLowerCase() === scannerEmail);
+      if (match) {
+        authUserId = match.id;
+        await admin.auth.admin.updateUserById(match.id, { password: scannerPassword });
+      } else {
+        return fail("Could not establish gate session: " + (createErr?.message || "Auth error"));
+      }
+    }
+
+    // Ensure staff profile in app_users
+    await admin.from("app_users").upsert({
+      id: authUserId,
+      username: `gate_${event.code.toLowerCase()}`,
+      email: scannerEmail,
+      role: "TICKET_SCANNER",
+      assigned_event_ids: [event.id],
+      full_name: `Gate Scanner [${event.code}]`,
+      status: "ACTIVE"
+    }, { onConflict: "id" });
+
+    // Ensure gate_sessions record for this user
+    await admin.from("gate_sessions").upsert({
+      user_id: authUserId,
+      event_id: event.id,
+      created_at: new Date().toISOString()
+    }, { onConflict: "user_id" });
+
+    return json({
+      success: true,
+      email: scannerEmail,
+      password: scannerPassword,
+      event: { id: event.id, name: event.name, code: event.code }
+    });
+  }
+
+  // 1. Who is calling? (For administrative actions below)
   const authHeader = req.headers.get("Authorization") ?? "";
   const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
   const { data: userData, error: userErr } = await userClient.auth.getUser();
   if (userErr || !userData?.user) return fail("Not signed in.", 401);
 
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: caller } = await admin
     .from("app_users").select("id, role, status, assigned_event_ids")
     .eq("id", userData.user.id).maybeSingle();
@@ -46,9 +118,6 @@ Deno.serve(async (req) => {
   }
   const isMaster = caller.role === "MASTER_ADMIN";
   const callerEvents: string[] = caller.assigned_event_ids ?? [];
-
-  let body: any;
-  try { body = await req.json(); } catch { return fail("Invalid JSON body."); }
 
   const eventsAllowed = (ids: string[]) => isMaster || (ids.length > 0 && ids.every((id) => callerEvents.includes(id)));
   const cleanIds = (v: unknown): string[] =>

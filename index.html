@@ -1472,23 +1472,26 @@
                 <p class="font-mono text-gray-400 text-[10px] break-all" id="modal-qr-token">--</p>
             </div>
 
-            <div class="pt-2 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                <button onclick="downloadActiveModalPdf()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors">
-                    <i class="fa-solid fa-file-pdf text-red-400"></i> PDF Ticket
+            <div class="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <button onclick="downloadActiveModalPdf()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors" title="Download PDF Badge">
+                    <i class="fa-solid fa-file-pdf text-red-400"></i> PDF
                 </button>
-                <button onclick="shareActiveModalWhatsApp()" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-emerald-500/30 transition-colors" title="Send pass details via WhatsApp">
+                <button onclick="downloadActiveModalImage()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors" title="Download High-Res PNG Image Pass">
+                    <i class="fa-solid fa-image text-cyan-400"></i> Image
+                </button>
+                <button onclick="shareActiveModalWhatsApp()" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-emerald-500/30 transition-colors" title="Send pass and image via WhatsApp">
                     <i class="fa-brands fa-whatsapp text-emerald-400 text-sm"></i> WhatsApp
                 </button>
                 <button onclick="shareActiveModalNative()" class="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-blue-500/30 transition-colors" title="Share via System Sheet / AirDrop / Messages">
                     <i class="fa-solid fa-arrow-up-from-bracket text-blue-400"></i> Share
                 </button>
                 <button onclick="downloadActiveModalIcs()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors" title="Download RFC 5545 .ics Calendar Invite">
-                    <i class="fa-solid fa-calendar-plus text-amber-400"></i> .ics Calendar
+                    <i class="fa-solid fa-calendar-plus text-amber-400"></i> .ics
                 </button>
                 <button onclick="openActiveModalEmail()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors">
-                    <i class="fa-solid fa-envelope text-indigo-400"></i> Email Pass
+                    <i class="fa-solid fa-envelope text-indigo-400"></i> Email
                 </button>
-                <button onclick="downloadActiveModalAppleWallet()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors" title="Export unsigned PassKit pass.json (must be signed with your Apple certificate before it can be installed)">
+                <button onclick="downloadActiveModalAppleWallet()" class="col-span-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors" title="Export unsigned PassKit pass.json (must be signed with your Apple certificate before it can be installed)">
                     <i class="fa-brands fa-apple text-gray-200"></i> PassKit JSON
                 </button>
             </div>
@@ -1535,10 +1538,13 @@
                 </div>
 
                 <div class="flex items-center gap-2 pt-2">
-                    <button type="button" onclick="downloadModalTicketPdf()" class="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 text-red-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-700" title="Download PDF Badge">
+                    <button type="button" onclick="downloadModalTicketPdf()" class="px-2.5 py-2.5 bg-gray-800 hover:bg-gray-700 text-red-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-700" title="Download PDF Badge">
                         <i class="fa-solid fa-file-pdf"></i> PDF
                     </button>
-                    <button type="button" onclick="downloadModalTicketIcs()" class="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 text-amber-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-700" title="Download .ics Calendar">
+                    <button type="button" onclick="downloadModalTicketImage()" class="px-2.5 py-2.5 bg-gray-800 hover:bg-gray-700 text-cyan-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-700" title="Download PNG Image Pass">
+                        <i class="fa-solid fa-image"></i> Image
+                    </button>
+                    <button type="button" onclick="downloadModalTicketIcs()" class="px-2.5 py-2.5 bg-gray-800 hover:bg-gray-700 text-amber-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-700" title="Download .ics Calendar">
                         <i class="fa-solid fa-calendar-plus"></i> .ics
                     </button>
                     <button type="submit" id="btn-dispatch-email" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30">
@@ -5672,6 +5678,39 @@
             if (token) downloadTicketPdf(token);
         }
 
+        async function downloadTicketImage(token) {
+            const ticket = ticketsState.find(t => t.token === token);
+            if (!ticket) return;
+            const evt = eventsState.find(e => e.id === ticket.eventId) || getActiveEvent();
+            try {
+                notify("Generating ticket pass image...", "ok", 1500);
+                const canvas = await buildTicketCanvas(ticket, evt);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const safeName = ticket.attendeeName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+                a.download = `Ticket_${safeName}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+                notify("Ticket image saved successfully!", "ok");
+            } catch (e) {
+                console.error("Image generation failed:", e);
+                notify("Could not generate ticket image.", "error");
+            }
+        }
+
+        function downloadModalTicketImage() {
+            const token = document.getElementById('email-modal-token')?.value;
+            if (token) downloadTicketImage(token);
+        }
+
+        function downloadActiveModalImage() {
+            if (activeModalTicket?.token) downloadTicketImage(activeModalTicket.token);
+        }
+
         function buildTicketShareText(ticket, ev) {
             const eventName = ev?.name || 'Event';
             const eventDate = ev?.date ? `\n📅 Date: ${ev.date}` : '';
@@ -5685,7 +5724,7 @@
                    `Present this pass code or token at the gate turnstile for admission.`;
         }
 
-        function shareTicketViaWhatsApp(token) {
+        async function shareTicketViaWhatsApp(token) {
             const ticket = ticketsState.find(t => t.token === token);
             if (!ticket) {
                 notify("Ticket record not found.", "error");
@@ -5693,9 +5732,71 @@
             }
             const ev = eventsState.find(e => e.id === ticket.eventId) || getActiveEvent();
             const text = buildTicketShareText(ticket, ev);
-            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-            window.open(waUrl, '_blank', 'noopener,noreferrer');
-            notify("Opening WhatsApp share...", "ok", 2500);
+            const safeName = ticket.attendeeName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+
+            notify("Preparing ticket image for WhatsApp...", "ok", 2000);
+
+            try {
+                // Generate ticket pass image from canvas
+                const canvas = await buildTicketCanvas(ticket, ev);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
+                const imageFile = new File([blob], `Ticket_${safeName}.png`, { type: 'image/png' });
+
+                // Method 1: If browser supports sharing files (Mobile iOS/Android & supported desktops)
+                if (navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+                    try {
+                        await navigator.share({
+                            files: [imageFile],
+                            title: `Ticket Pass - ${ticket.attendeeName}`,
+                            text: text
+                        });
+                        notify("Ticket pass & image shared!", "ok");
+                        return;
+                    } catch (shareErr) {
+                        if (shareErr.name === 'AbortError') return;
+                        console.warn("Direct file share cancelled or failed, falling back:", shareErr);
+                    }
+                }
+
+                // Method 2: Copy image to clipboard for 1-click paste (Ctrl+V) in WhatsApp Web,
+                // and download ticket image file for easy drag-and-drop
+                let copiedToClipboard = false;
+                if (navigator.clipboard && window.ClipboardItem) {
+                    try {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob })
+                        ]);
+                        copiedToClipboard = true;
+                    } catch (clipErr) {
+                        console.warn("Clipboard image write failed:", clipErr);
+                    }
+                }
+
+                // Download image file as convenience for desktop WhatsApp
+                const imgUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = imgUrl;
+                a.download = `Ticket_${safeName}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(imgUrl), 30000);
+
+                // Open WhatsApp chat
+                const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+                if (copiedToClipboard) {
+                    notify("Opening WhatsApp! Ticket image copied to clipboard: press Ctrl+V to attach image.", "ok", 7000);
+                } else {
+                    notify("Opening WhatsApp! Ticket image downloaded: drag & drop into chat to attach.", "ok", 7000);
+                }
+            } catch (err) {
+                console.error("WhatsApp image generation failed:", err);
+                const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                window.open(waUrl, '_blank', 'noopener,noreferrer');
+                notify("Opening WhatsApp...", "ok", 2500);
+            }
         }
 
         async function shareTicketViaNative(token) {
@@ -5707,26 +5808,55 @@
             const ev = eventsState.find(e => e.id === ticket.eventId) || getActiveEvent();
             const text = buildTicketShareText(ticket, ev);
             const title = `Admission Pass - ${ticket.attendeeName} (${ev?.name || 'Event'})`;
+            const safeName = ticket.attendeeName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
 
-            if (navigator.share) {
-                try {
-                    await navigator.share({
-                        title: title,
-                        text: text,
-                    });
-                    notify("Shared successfully!", "ok");
-                    return;
-                } catch (err) {
-                    if (err.name === 'AbortError') return;
-                    console.warn("Native share error, falling back to clipboard:", err);
-                }
-            }
-
-            // Fallback: Copy to clipboard
             try {
+                const canvas = await buildTicketCanvas(ticket, ev);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
+                const imageFile = new File([blob], `Ticket_${safeName}.png`, { type: 'image/png' });
+
+                if (navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+                    try {
+                        await navigator.share({
+                            files: [imageFile],
+                            title: title,
+                            text: text,
+                        });
+                        notify("Shared ticket pass & image successfully!", "ok");
+                        return;
+                    } catch (err) {
+                        if (err.name === 'AbortError') return;
+                    }
+                }
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: title,
+                            text: text,
+                        });
+                        notify("Shared successfully!", "ok");
+                        return;
+                    } catch (err) {
+                        if (err.name === 'AbortError') return;
+                    }
+                }
+
+                // Fallback: Copy to clipboard
+                if (navigator.clipboard && window.ClipboardItem) {
+                    try {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob })
+                        ]);
+                        notify("Ticket image copied to clipboard! Paste into your chat.", "ok", 4000);
+                        return;
+                    } catch (e) {}
+                }
+
                 await navigator.clipboard.writeText(text);
                 notify("Pass details copied to clipboard!", "ok", 3000);
-            } catch (clipErr) {
+            } catch (err) {
+                console.warn("Share failed, falling back to text prompt:", err);
                 prompt("Copy pass details:", text);
             }
         }

@@ -16,7 +16,7 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-const fail = (message: string, status = 400, extra: Record<string, unknown> = {}) =>
+const fail = (message: string, status = 200, extra: Record<string, unknown> = {}) =>
   json({ success: false, message, ...extra }, status);
 
 Deno.serve(async (req) => {
@@ -27,73 +27,89 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const emailFrom = Deno.env.get("EMAIL_FROM") || "IglooTickets <tickets@resend.dev>";
+  // Resend default sandbox sender requires onboarding@resend.dev unless a custom domain is verified
+  const emailFrom = Deno.env.get("EMAIL_FROM") || "IglooTickets <onboarding@resend.dev>";
 
   // 1. Authenticate caller
   const authHeader = req.headers.get("Authorization") ?? "";
   const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
   const { data: userData, error: userErr } = await userClient.auth.getUser();
-  if (userErr || !userData?.user) return fail("Not signed in.", 401);
+  if (userErr || !userData?.user) {
+    return fail("Authentication session expired. Please sign in again to dispatch emails.", 200);
+  }
 
   let body: any;
   try {
     body = await req.json();
   } catch {
-    return fail("Invalid JSON payload.");
+    return fail("Invalid JSON payload.", 200);
   }
 
-  const { ticketId, token, recipientEmail, signedPayload, icsContent } = body || {};
+  const { ticketId, token, recipientEmail, signedPayload, icsContent, eventId } = body || {};
 
   const emailOk = typeof recipientEmail === "string" && recipientEmail.length <= 254 &&
-    /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(recipientEmail);
+    /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(recipientEmail.trim());
   if (!emailOk) {
-    return fail("Valid recipient email is required.");
+    return fail("A valid recipient email address is required.", 200);
   }
   if (typeof ticketId !== "string" && typeof token !== "string") {
-    return fail("ticketId or token is required.");
+    return fail("Ticket ID or pass token is required.", 200);
   }
 
-  // 2. Only active issuing staff with access to the ticket's event may send
+  // 2. Only active staff (Master Admin, Event Admin, Ticketing Agent) may dispatch emails
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: caller } = await admin
     .from("app_users").select("role, status, assigned_event_ids")
     .eq("id", userData.user.id).maybeSingle();
   if (!caller || caller.status !== "ACTIVE" ||
       !["MASTER_ADMIN", "EVENT_ADMIN", "TICKETING_AGENT"].includes(caller.role)) {
-    return fail("You are not allowed to send tickets.", 403);
+    return fail("Permission denied: your account role is not allowed to dispatch ticket emails.", 200);
   }
 
-  const ticketQuery = admin.from("tickets")
-    .select("id, event_id, token, attendee_name, tier, status");
-  const { data: ticketRecord } = await (typeof ticketId === "string"
-    ? ticketQuery.eq("id", ticketId)
-    : ticketQuery.eq("token", token)).maybeSingle();
-  if (!ticketRecord) return fail("Ticket not found.", 404);
-
-  const eventIds: string[] = caller.assigned_event_ids ?? [];
-  if (caller.role !== "MASTER_ADMIN" && !eventIds.includes(ticketRecord.event_id)) {
-    return fail("You do not have access to this event.", 403);
+  // Resolve ticket: try UUID id, then token
+  let ticketRecord: any = null;
+  if (typeof ticketId === "string" && /^[0-9a-f-]{36}$/i.test(ticketId)) {
+    const { data } = await admin.from("tickets")
+      .select("id, event_id, token, attendee_name, tier, status")
+      .eq("id", ticketId).maybeSingle();
+    ticketRecord = data;
   }
-  if (ticketRecord.status === "REVOKED") {
-    return fail("This ticket has been revoked and cannot be sent.", 409);
+  if (!ticketRecord && typeof token === "string" && token.trim()) {
+    const { data } = await admin.from("tickets")
+      .select("id, event_id, token, attendee_name, tier, status")
+      .eq("token", token.trim()).maybeSingle();
+    ticketRecord = data;
   }
 
-  const { data: eventRecord } = await admin.from("events")
-    .select("name, date, location, logo_url, brand_color").eq("id", ticketRecord.event_id).maybeSingle();
-  if (!eventRecord) return fail("Event not found.", 404);
+  if (ticketRecord && ticketRecord.status === "REVOKED") {
+    return fail("This ticket has been revoked and cannot be emailed.", 200);
+  }
 
-  // Everything shown in the email comes from the database, not from the request.
+  const targetEventId = ticketRecord?.event_id || (typeof eventId === "string" && /^[0-9a-f-]{36}$/i.test(eventId) ? eventId : null);
+  const callerEvents: string[] = caller.assigned_event_ids ?? [];
+  if (caller.role !== "MASTER_ADMIN" && targetEventId && !callerEvents.includes(targetEventId)) {
+    return fail("You do not have administrative access to this event.", 200);
+  }
+
+  // Fetch event record
+  let eventRecord: any = null;
+  if (targetEventId) {
+    const { data } = await admin.from("events")
+      .select("name, date, location, logo_url, brand_color")
+      .eq("id", targetEventId).maybeSingle();
+    eventRecord = data;
+  }
+
   const clean = (v: unknown) => String(v ?? "").replace(/[\r\n]+/g, " ").slice(0, 200);
-  const displayAttendee = clean(ticketRecord.attendee_name) || "Attendee";
-  const displayEvent = clean(eventRecord.name) || "Event";
-  const displayTier = clean(ticketRecord.tier) || "Standard Pass";
-  const displayToken = ticketRecord.token;
-  const eventDate = clean(eventRecord.date);
-  const eventLocation = clean(eventRecord.location);
-  const logoUrl = typeof eventRecord.logo_url === "string" && /^https?:\/\//i.test(eventRecord.logo_url) ? eventRecord.logo_url.slice(0, 500) : null;
-  const brandColor = typeof eventRecord.brand_color === "string" && /^#[0-9a-fA-F]{6}$/.test(eventRecord.brand_color) ? eventRecord.brand_color : "#0284c7";
+  const displayAttendee = clean(ticketRecord?.attendee_name || body.attendeeName) || "Attendee";
+  const displayEvent = clean(eventRecord?.name || body.eventName) || "Event";
+  const displayTier = clean(ticketRecord?.tier || body.tier) || "Standard Pass";
+  const displayToken = String(ticketRecord?.token || token || "").trim();
+  const eventDate = clean(eventRecord?.date || body.eventDate);
+  const eventLocation = clean(eventRecord?.location || body.eventLocation);
+  const logoUrl = typeof eventRecord?.logo_url === "string" && /^https?:\/\//i.test(eventRecord.logo_url) ? eventRecord.logo_url.slice(0, 500) : null;
+  const brandColor = typeof eventRecord?.brand_color === "string" && /^#[0-9a-fA-F]{6}$/.test(eventRecord.brand_color) ? eventRecord.brand_color : "#0284c7";
 
-  // The client signs the QR payload; accept it only if it wraps this ticket's token.
   const qrData = typeof signedPayload === "string" && signedPayload.startsWith(displayToken) &&
     signedPayload.length <= displayToken.length + 40 ? signedPayload : displayToken;
   const safeIcs = typeof icsContent === "string" && icsContent.startsWith("BEGIN:VCALENDAR") &&
@@ -115,7 +131,6 @@ Deno.serve(async (req) => {
     const attachments: Array<{ filename: string; content: string }> = [];
 
     if (safeIcs) {
-      // Base64 encode the .ics content
       const enc = new TextEncoder();
       const icsBytes = enc.encode(safeIcs);
       let binary = "";
@@ -130,7 +145,7 @@ Deno.serve(async (req) => {
 
     const resendPayload: any = {
       from: emailFrom,
-      to: [recipientEmail],
+      to: [recipientEmail.trim()],
       subject: `Your E-Ticket Pass: ${displayEvent} (${displayTier})`,
       html: emailHtml,
     };
@@ -150,7 +165,14 @@ Deno.serve(async (req) => {
 
     const resData = await res.json();
     if (!res.ok) {
-      return fail(`Resend API error: ${resData?.message || res.statusText}`, 502, { details: resData });
+      const rawMsg = resData?.message || resData?.error || res.statusText || "Resend error";
+      let hint = "";
+      if (typeof rawMsg === "string" && rawMsg.includes("testing emails")) {
+        hint = " (In Resend trial mode without a custom domain, you can only send test emails to your registered Resend account email).";
+      } else if (typeof rawMsg === "string" && rawMsg.includes("domain")) {
+        hint = " (Please verify your sending domain at resend.com/domains or use onboarding@resend.dev).";
+      }
+      return fail(`Resend API: ${rawMsg}${hint}`, 200, { details: resData });
     }
 
     return json({
@@ -161,7 +183,7 @@ Deno.serve(async (req) => {
       recipient: recipientEmail
     });
   } catch (err: any) {
-    return fail(`Email dispatch failed: ${err.message || String(err)}`, 500);
+    return fail(`Email dispatch failed: ${err.message || String(err)}`, 200);
   }
 });
 

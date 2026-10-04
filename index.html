@@ -5764,11 +5764,12 @@
                         body: {
                             ticketId: ticket.id,
                             token: ticket.token,
+                            eventId: evt?.id,
                             recipientEmail,
                             attendeeName: ticket.attendeeName,
-                            eventName: evt.name,
-                            eventDate: evt.date,
-                            eventLocation: evt.location,
+                            eventName: evt?.name,
+                            eventDate: evt?.date,
+                            eventLocation: evt?.location,
                             tier: ticket.tier,
                             signedPayload,
                             icsContent
@@ -5776,8 +5777,27 @@
                     });
 
                     if (funcErr) {
+                        let errMsg = funcErr.message;
+                        try {
+                            if (funcErr.context && typeof funcErr.context.json === 'function') {
+                                const body = await funcErr.context.json();
+                                if (body && body.message) errMsg = body.message;
+                            } else if (funcErr.context && typeof funcErr.context.text === 'function') {
+                                const txt = await funcErr.context.text();
+                                if (txt) {
+                                    try {
+                                        const parsed = JSON.parse(txt);
+                                        if (parsed && parsed.message) errMsg = parsed.message;
+                                    } catch {
+                                        errMsg = txt.slice(0, 160);
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.warn("Could not read error context:", e);
+                        }
                         console.warn("Edge function error:", funcErr);
-                        notify("Email function: " + (funcErr.message || "Failed to reach edge service"), "error");
+                        notify(errMsg || "Failed to reach edge service", "error", 6000);
                         return;
                     }
 
@@ -5789,6 +5809,9 @@
                         closeEmailTicketModal();
                         notify("RESEND_API_KEY secret not set in Supabase. Pass invite downloaded.", "ok", 6000);
                         downloadTicketIcs(ticket.token);
+                        return;
+                    } else if (resData && !resData.success) {
+                        notify(resData.message || "Email dispatch failed. Please verify sending configuration.", "error", 6000);
                         return;
                     }
                 }

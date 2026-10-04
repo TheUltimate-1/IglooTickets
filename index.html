@@ -21,10 +21,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <!-- Google Fonts: Orbitron & Share Tech Mono (Vaporwave / Outrun Design System) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- QRCode.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -46,17 +46,26 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
+                        sans: ['"Share Tech Mono"', 'monospace'],
+                        mono: ['"Share Tech Mono"', 'monospace'],
+                        heading: ['"Orbitron"', 'sans-serif'],
+                        body: ['"Share Tech Mono"', 'monospace']
                     },
                     colors: {
+                        void: '#090014',
+                        surface: '#1a103c',
+                        chrome: '#E0E0E0',
+                        magenta: '#FF00FF',
+                        cyan: '#00FFFF',
+                        orange: '#FF9900',
+                        neonborder: '#2D1B4E',
                         brand: {
-                            50: '#eef2ff',
-                            100: '#e0e7ff',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                            900: '#312e81',
+                            50: '#fdf2f8',
+                            100: '#fce7f3',
+                            500: '#FF00FF',
+                            600: '#d946ef',
+                            700: '#c026d3',
+                            900: '#1a103c',
                         }
                     }
                 }
@@ -65,29 +74,185 @@
     </script>
 
     <style>
+        :root {
+            --outrun-void: #090014;
+            --outrun-magenta: #FF00FF;
+            --outrun-cyan: #00FFFF;
+            --outrun-orange: #FF9900;
+            --outrun-surface: #1a103c;
+            --outrun-chrome: #E0E0E0;
+            --outrun-border: #2D1B4E;
+        }
+
         body {
-            background-color: #080c16;
-            color: #f3f4f6;
-            font-family: 'Inter', sans-serif;
+            background-color: var(--outrun-void);
+            color: var(--outrun-chrome);
+            font-family: 'Share Tech Mono', monospace;
             overflow-x: hidden;
         }
 
-        /* Glassmorphism panels */
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        h1, h2, h3, h4, h5, h6, .font-heading {
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 0.05em;
+        }
+
+        /* Perspective 3D Wireframe Grid Floor */
+        .outrun-grid-floor {
+            position: fixed;
+            bottom: 0;
+            left: -50%;
+            width: 200%;
+            height: 55vh;
+            background-image: 
+                linear-gradient(transparent 94%, rgba(255, 0, 255, 0.45) 95%, rgba(255, 0, 255, 0.7) 100%),
+                linear-gradient(90deg, transparent 94%, rgba(0, 255, 255, 0.35) 95%, rgba(0, 255, 255, 0.6) 100%);
+            background-size: 50px 50px;
+            transform: perspective(400px) rotateX(68deg);
+            transform-origin: bottom center;
+            mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+            animation: grid-scroll 20s linear infinite;
+        }
+
+        @keyframes grid-scroll {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 1000px; }
+        }
+
+        /* Ambient Glowing Sun Orb */
+        .outrun-sun {
+            position: fixed;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 580px;
+            height: 580px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #FF9900 0%, #FF00FF 65%, #00FFFF 100%);
+            filter: blur(110px);
+            opacity: 0.16;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* CRT Scanlines & Screen Vignette Overlay */
+        .crt-scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(rgba(18, 16, 20, 0) 50%, rgba(0, 0, 0, 0.32) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.75;
+        }
+
+        /* Outrun Glass Cards & Panels */
+        .glass-panel, .outrun-card {
+            background: rgba(26, 16, 60, 0.82) !important;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 0, 255, 0.28) !important;
+            border-top: 2px solid #00FFFF !important;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.08), inset 0 0 15px rgba(255, 0, 255, 0.04);
+            border-radius: 0px !important;
         }
 
         .glass-card {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(26, 16, 60, 0.9) !important;
+            border: 1px solid rgba(0, 255, 255, 0.25) !important;
+            border-top: 2px solid #FF00FF !important;
+            border-radius: 0px !important;
         }
 
-        /* Viewfinder Laser Animation */
+        /* Skewed Outrun Buttons */
+        .btn-outrun-primary {
+            transform: skewX(-10deg);
+            border: 2px solid #00FFFF;
+            background: transparent;
+            color: #00FFFF;
+            font-family: 'Share Tech Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            transition: all 0.18s ease-in-out;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+            border-radius: 0px !important;
+        }
+        .btn-outrun-primary > * {
+            display: inline-block;
+            transform: skewX(10deg);
+        }
+        .btn-outrun-primary:hover {
+            transform: skewX(0deg);
+            background: #00FFFF;
+            color: #090014;
+            box-shadow: 0 0 25px #00FFFF, 0 0 45px rgba(0, 255, 255, 0.6);
+        }
+        .btn-outrun-primary:hover > * {
+            transform: skewX(0deg);
+        }
+
+        .btn-outrun-secondary {
+            transform: skewX(-10deg);
+            border: 2px solid #FF00FF;
+            background: rgba(255, 0, 255, 0.15);
+            color: #FF00FF;
+            font-family: 'Share Tech Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            transition: all 0.18s ease-in-out;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.3);
+            border-radius: 0px !important;
+        }
+        .btn-outrun-secondary > * {
+            display: inline-block;
+            transform: skewX(10deg);
+        }
+        .btn-outrun-secondary:hover {
+            transform: skewX(0deg);
+            background: #FF00FF;
+            color: #FFFFFF;
+            box-shadow: 0 0 25px #FF00FF, 0 0 45px rgba(255, 0, 255, 0.6);
+        }
+        .btn-outrun-secondary:hover > * {
+            transform: skewX(0deg);
+        }
+
+        /* Neon Text Glow Utilities */
+        .text-glow-cyan {
+            text-shadow: 0 0 8px #00FFFF, 0 0 20px rgba(0, 255, 255, 0.6);
+        }
+        .text-glow-magenta {
+            text-shadow: 0 0 8px #FF00FF, 0 0 20px rgba(255, 0, 255, 0.6);
+        }
+        .text-glow-sunset {
+            background: linear-gradient(135deg, #FF9900 0%, #FF00FF 50%, #00FFFF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 12px rgba(255, 0, 255, 0.5));
+        }
+
+        /* Terminal Window Header Bar */
+        .terminal-header {
+            background: rgba(0, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            color: #00FFFF;
+        }
+
+        /* Viewfinder Laser Animation (Cyan & Magenta Outrun Laser) */
         @keyframes scan-laser {
             0% { top: 0%; opacity: 0.8; }
             50% { top: 96%; opacity: 1; }
@@ -98,52 +263,192 @@
             left: 0;
             width: 100%;
             height: 3px;
-            background: linear-gradient(90deg, transparent, #22c55e, #4ade80, #22c55e, transparent);
-            box-shadow: 0 0 16px #22c55e, 0 0 24px #4ade80;
-            animation: scan-laser 2.4s infinite ease-in-out;
+            background: linear-gradient(90deg, transparent, #FF00FF, #00FFFF, #FF00FF, transparent);
+            box-shadow: 0 0 18px #00FFFF, 0 0 30px #FF00FF;
+            animation: scan-laser 2.2s infinite ease-in-out;
         }
 
-        /* Duplicate Alert Flash */
+        /* Duplicate Alert Flash (Hot Magenta / Red Glitch) */
         @keyframes pulse-danger {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            50% { transform: scale(1.02); box-shadow: 0 0 25px 6px rgba(239, 68, 68, 0.5); }
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 255, 0.8); }
+            50% { transform: scale(1.02); box-shadow: 0 0 30px 8px rgba(255, 0, 85, 0.7); }
         }
         .animate-pulse-danger {
-            animation: pulse-danger 1.2s infinite ease-in-out;
+            animation: pulse-danger 1.1s infinite ease-in-out;
         }
 
         /* Scan Hit Highlight */
         .scan-hit {
-            border-color: #22c55e !important;
-            box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.45) !important;
+            border-color: #00FFFF !important;
+            box-shadow: 0 0 0 4px rgba(0, 255, 255, 0.6), 0 0 30px #00FFFF !important;
             transition: all 0.15s ease-out;
         }
 
-        /* Custom Scrollbar */
+        /* Outrun Custom Scrollbar */
         ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 7px;
+            height: 7px;
         }
         ::-webkit-scrollbar-track {
-            background: #0b0f19;
+            background: #090014;
+            border-left: 1px solid #2D1B4E;
         }
         ::-webkit-scrollbar-thumb {
-            background: #2d3748;
-            border-radius: 4px;
+            background: linear-gradient(180deg, #FF00FF, #00FFFF);
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #4a5568;
+            background: #00FFFF;
+            box-shadow: 0 0 14px #00FFFF;
+        }
+
+        /* Inputs in Outrun Style */
+        input, select, textarea {
+            border-radius: 0px !important;
+        }
+    
+        /* Vaporwave / Outrun Custom Typography & Effects */
+        .font-heading {
+            font-family: 'Orbitron', -apple-system, sans-serif !important;
+            letter-spacing: 0.06em;
+        }
+        .font-mono-code {
+            font-family: 'Share Tech Mono', monospace !important;
+        }
+
+        /* Outrun Window & Terminal Chrome */
+        .outrun-window {
+            background: rgba(14, 10, 32, 0.92) !important;
+            border: 2px solid #00FFFF !important;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.25), inset 0 0 20px rgba(255, 0, 255, 0.08) !important;
+            border-radius: 0px !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .outrun-window-magenta {
+            background: rgba(14, 10, 32, 0.92) !important;
+            border: 2px solid #FF00FF !important;
+            box-shadow: 0 0 25px rgba(255, 0, 255, 0.25), inset 0 0 20px rgba(0, 255, 255, 0.08) !important;
+            border-radius: 0px !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .window-titlebar {
+            background: rgba(0, 255, 255, 0.08);
+            border-bottom: 2px solid #00FFFF;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: #00FFFF;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .window-titlebar-magenta {
+            background: rgba(255, 0, 255, 0.08);
+            border-bottom: 2px solid #FF00FF;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: #FF00FF;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .window-dots {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .window-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot-magenta { background: #FF00FF; box-shadow: 0 0 8px #FF00FF; }
+        .dot-cyan { background: #00FFFF; box-shadow: 0 0 8px #00FFFF; }
+        .dot-orange { background: #FF9900; box-shadow: 0 0 8px #FF9900; }
+
+        /* Neon Badges */
+        .neon-badge-cyan {
+            border: 1px solid #00FFFF !important;
+            background: rgba(0, 255, 255, 0.12) !important;
+            color: #00FFFF !important;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.8) !important;
+            font-family: 'Share Tech Mono', monospace !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.08em !important;
+            border-radius: 0px !important;
+        }
+        .neon-badge-magenta {
+            border: 1px solid #FF00FF !important;
+            background: rgba(255, 0, 255, 0.12) !important;
+            color: #FF00FF !important;
+            text-shadow: 0 0 8px rgba(255, 0, 255, 0.8) !important;
+            font-family: 'Share Tech Mono', monospace !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.08em !important;
+            border-radius: 0px !important;
+        }
+        .neon-badge-orange {
+            border: 1px solid #FF9900 !important;
+            background: rgba(255, 153, 0, 0.12) !important;
+            color: #FF9900 !important;
+            text-shadow: 0 0 8px rgba(255, 153, 0, 0.8) !important;
+            font-family: 'Share Tech Mono', monospace !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.08em !important;
+            border-radius: 0px !important;
+        }
+        .neon-badge-emerald {
+            border: 1px solid #00FF88 !important;
+            background: rgba(0, 255, 136, 0.12) !important;
+            color: #00FF88 !important;
+            text-shadow: 0 0 8px rgba(0, 255, 136, 0.8) !important;
+            font-family: 'Share Tech Mono', monospace !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.08em !important;
+            border-radius: 0px !important;
+        }
+
+        /* Cyberpunk Reticle Corners */
+        .hud-corner-tl { position: absolute; top: -2px; left: -2px; width: 14px; height: 14px; border-top: 3px solid #00FFFF; border-left: 3px solid #00FFFF; }
+        .hud-corner-tr { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; border-top: 3px solid #00FFFF; border-right: 3px solid #00FFFF; }
+        .hud-corner-bl { position: absolute; bottom: -2px; left: -2px; width: 14px; height: 14px; border-bottom: 3px solid #00FFFF; border-left: 3px solid #00FFFF; }
+        .hud-corner-br { position: absolute; bottom: -2px; right: -2px; width: 14px; height: 14px; border-bottom: 3px solid #00FFFF; border-right: 3px solid #00FFFF; }
+
+        /* General form input theme */
+        input[type="text"], input[type="password"], input[type="email"], input[type="number"], input[type="date"], select, textarea {
+            background-color: #05000a !important;
+            border-color: #2D1B4E !important;
+            color: #00FFFF !important;
+            font-family: 'Share Tech Mono', monospace !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #00FFFF !important;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.5) !important;
+            outline: none !important;
         }
 
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-indigo-600 selection:text-white bg-[#070b14] text-gray-100">
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-[#FF00FF] selection:text-white bg-[#090014] text-[#E0E0E0] relative">
+    <!-- Outrun Atmosphere Layers -->
+    <div class="crt-scanlines"></div>
+    <div class="outrun-sun"></div>
+    <div class="outrun-grid-floor"></div>
+    <div class="relative z-10 flex flex-col min-h-screen justify-between">
 
     <!-- ========================================================================= -->
     <!-- AUTHENTICATION VIEW: DEDICATED FULL-SCREEN LAUNCH LOGIN PAGE -->
     <!-- (Displayed when unauthenticated; dashboard is completely locked and hidden) -->
     <!-- ========================================================================= -->
-    <div id="auth-view" class="min-h-screen w-full flex flex-col justify-between relative overflow-hidden bg-[#070b14] text-gray-100 p-4 sm:p-6 md:p-8">
+    <div id="auth-view" class="min-h-screen w-full flex flex-col justify-between relative overflow-hidden bg-transparent text-[#E0E0E0] p-4 sm:p-6 md:p-8">
         
         <!-- Ambient Glowing Background Accents -->
         <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none"></div>
@@ -163,30 +468,38 @@
 
         <!-- Main Auth Container -->
         <main class="w-full max-w-md mx-auto my-auto py-8 relative z-10">
-            <div class="glass-panel p-6 sm:p-8 rounded-3xl border border-indigo-500/30 shadow-2xl shadow-black/80 backdrop-blur-2xl space-y-6">
+            <div class="outrun-window space-y-0">
+                <div class="window-titlebar">
+                    <div class="window-dots">
+                        <span class="window-dot dot-magenta"></span>
+                        <span class="window-dot dot-cyan"></span>
+                        <span class="window-dot dot-orange"></span>
+                    </div>
+                    <span class="font-mono text-xs font-bold tracking-widest">&gt; TERMINAL_AUTH // IGLOOTICKETS</span>
+                    <span class="text-[10px] text-[#00FFFF] opacity-75 font-mono">SYS.2088</span>
+                </div>
+                <div class="p-6 sm:p-8 space-y-6">
                 
                 <!-- Brand Hero -->
-                <div class="text-center space-y-1.5">
+                <div class="text-center space-y-2">
                     <div class="relative inline-block mb-1">
-                        <img src="icon.svg" alt="IglooTickets" class="w-14 h-14 rounded-2xl shadow-xl shadow-indigo-600/30 mx-auto">
-                        <span class="absolute -bottom-1 -right-1 flex h-4 w-4">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-[#070b14]"></span>
+                        <img src="icon.svg" alt="IglooTickets" class="w-14 h-14 mx-auto border-2 border-[#00FFFF] shadow-[0_0_20px_#00FFFF]">
+                        <span class="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00FFFF] opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#FF00FF] border border-[#090014]"></span>
                         </span>
                     </div>
-                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">IglooTickets</h1>
-                    <p class="text-xs text-gray-400 font-medium">Events E-Ticketing Manager</p>
+                    <h1 class="font-heading font-black text-2xl sm:text-3xl tracking-wider text-glow-sunset">IGLOOTICKETS</h1>
+                    <p class="font-mono text-xs text-[#00FFFF] tracking-widest uppercase">&gt; NEON ACCESS GATEWAY &amp; VERIFIER</p>
                 </div>
 
                 <!-- Tab Switcher: Staff Credentials vs Gate Terminal PIN -->
-                <div class="flex p-1 bg-gray-900/90 rounded-2xl border border-gray-800 text-xs">
-                    <button type="button" onclick="setAuthTab('staff')" id="auth-tab-staff" class="flex-1 py-2 font-semibold rounded-xl bg-indigo-600 text-white transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-user-shield"></i>
-                        <span>Staff Login</span>
+                <div class="flex gap-2">
+                    <button type="button" onclick="setAuthTab('staff')" id="auth-tab-staff" class="btn-outrun-primary flex-1 py-2.5 flex items-center justify-center gap-2">
+                        <span><i class="fa-solid fa-user-shield mr-1"></i> STAFF LOGIN</span>
                     </button>
-                    <button type="button" onclick="setAuthTab('pin')" id="auth-tab-pin" class="flex-1 py-2 font-semibold rounded-xl text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-qrcode"></i>
-                        <span>Gate PIN</span>
+                    <button type="button" onclick="setAuthTab('pin')" id="auth-tab-pin" class="btn-outrun-secondary flex-1 py-2.5 flex items-center justify-center gap-2 opacity-50">
+                        <span><i class="fa-solid fa-qrcode mr-1"></i> GATE PIN</span>
                     </button>
                 </div>
 
@@ -224,9 +537,8 @@
                         </label>
                     </div>
 
-                    <button type="submit" id="staff-login-submit-btn" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 group">
-                        <span>Sign In to Console</span>
-                        <i class="fa-solid fa-arrow-right text-xs group-hover:translate-x-0.5 transition-transform"></i>
+                    <button type="submit" id="staff-login-submit-btn" class="btn-outrun-primary w-full py-3 flex items-center justify-center gap-2">
+                        <span>[ &gt; ACCESS CONSOLE ]</span>
                     </button>
                 </form>
 
@@ -254,14 +566,14 @@
 
                     <p class="text-[11px] text-gray-500 italic text-center">Unlocks mobile camera scanning directly for gate attendants without a full login.</p>
 
-                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 group">
-                        <i class="fa-solid fa-qrcode text-sm"></i>
-                        <span>Unlock Gate Scanner</span>
+                    <button type="submit" class="btn-outrun-secondary w-full py-3 flex items-center justify-center gap-2">
+                        <span><i class="fa-solid fa-qrcode text-sm mr-1"></i> [ &gt; UNLOCK GATE SCANNER ]</span>
                     </button>
                 </form>
 
 
 
+                </div>
             </div>
         </main>
 
@@ -296,13 +608,13 @@
                     <img src="icon.svg" alt="IglooTickets Logo" class="w-9 h-9 rounded-xl shadow-md shadow-indigo-600/20 flex-shrink-0">
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <span class="text-base sm:text-lg font-bold tracking-tight text-white truncate">IglooTickets</span>
+                            <span class="font-heading font-black text-lg sm:text-xl tracking-wider text-glow-sunset truncate">IGLOOTICKETS</span>
                         </div>
                         
                         <!-- Event Switcher (Shown for Master Admin and Event Admin) -->
-                        <div id="event-switcher-container" class="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400">
-                            <i class="fa-solid fa-calendar-days text-[11px] text-indigo-400"></i>
-                            <select id="active-event-select" onchange="handleEventSwitch(this.value)" class="bg-transparent text-indigo-200 hover:text-white font-medium border-0 focus:ring-0 p-0 text-xs cursor-pointer max-w-[180px] sm:max-w-xs truncate">
+                        <div id="event-switcher-container" class="flex items-center gap-1.5 mt-0.5 px-2 py-0.5 bg-black/60 border border-[#FF00FF]/40 text-xs">
+                            <i class="fa-solid fa-calendar-days text-[11px] text-[#00FFFF]"></i>
+                            <select id="active-event-select" onchange="handleEventSwitch(this.value)" class="bg-transparent text-[#00FFFF] font-mono border-0 focus:ring-0 p-0 text-xs cursor-pointer max-w-[180px] sm:max-w-xs truncate">
                                 <!-- Populated dynamically -->
                             </select>
                         </div>
@@ -320,7 +632,7 @@
 
 
                     <!-- Active User / Role Badge -->
-                    <div id="user-profile-badge" class="flex items-center space-x-2 bg-gray-900/80 border border-gray-800 rounded-xl px-2.5 py-1.5 hover:border-indigo-500/40 transition-all">
+                    <div id="user-profile-badge" class="flex items-center space-x-2 bg-[#1a103c]/90 border border-[#00FFFF]/40 px-3 py-1.5 hover:border-[#00FFFF] hover:shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all">
                         <div onclick="openProfileModal()" class="flex items-center space-x-2 cursor-pointer group" title="Click to view & edit your profile">
                             <div id="user-role-icon" class="text-indigo-400 text-sm group-hover:scale-110 transition-transform">
                                 <i class="fa-solid fa-user-shield"></i>
@@ -373,12 +685,12 @@
                 </div>
 
                 <!-- Center: Entrance vs Exit (Pass-Out) Mode Switch -->
-                <div class="flex items-center bg-gray-900/90 p-1 rounded-xl border border-gray-800">
-                    <button id="scan-mode-entrance-btn" onclick="setScanMode('ENTRANCE')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white transition-all flex items-center gap-1.5 shadow-sm">
-                        <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i> Entrance (Check-In)
+                <div class="flex items-center gap-2">
+                    <button id="scan-mode-entrance-btn" onclick="setScanMode('ENTRANCE')" class="px-3.5 py-1.5 text-xs font-mono font-bold uppercase -skew-x-6 border-2 border-[#00FF88] bg-[#00FF88]/20 text-[#00FF88] shadow-[0_0_12px_#00FF88] transition-all flex items-center gap-1.5">
+                        <span class="skew-x-6 flex items-center gap-1.5"><i class="fa-solid fa-arrow-right-to-bracket text-xs"></i> ENTRANCE</span>
                     </button>
-                    <button id="scan-mode-exit-btn" onclick="setScanMode('EXIT')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition-all flex items-center gap-1.5">
-                        <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i> Exit (Pass-Out)
+                    <button id="scan-mode-exit-btn" onclick="setScanMode('EXIT')" class="px-3.5 py-1.5 text-xs font-mono font-bold uppercase -skew-x-6 border-2 border-[#FF00FF]/40 bg-transparent text-[#FF00FF] hover:border-[#FF00FF] hover:shadow-[0_0_12px_#FF00FF] transition-all flex items-center gap-1.5">
+                        <span class="skew-x-6 flex items-center gap-1.5"><i class="fa-solid fa-arrow-right-from-bracket text-xs"></i> EXIT</span>
                     </button>
                 </div>
 
@@ -427,11 +739,11 @@
                             
                             <!-- Scanner Overlay Graphics -->
                             <div id="viewfinder-overlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <div id="scan-frame" class="w-52 h-52 sm:w-64 sm:h-64 border-2 border-indigo-500/50 rounded-2xl relative transition-all">
-                                    <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl"></div>
-                                    <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr"></div>
-                                    <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-indigo-400 rounded-bl"></div>
-                                    <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-indigo-400 rounded-br"></div>
+                                <div id="scan-frame" class="w-52 h-52 sm:w-64 sm:h-64 border-2 border-[#00FFFF] shadow-[0_0_25px_rgba(0,255,255,0.4)] relative transition-all">
+                                    <div class="hud-corner-tl"></div>
+                                    <div class="hud-corner-tr"></div>
+                                    <div class="hud-corner-bl"></div>
+                                    <div class="hud-corner-br"></div>
                                     <div id="laser-line" class="scan-laser hidden"></div>
                                 </div>
                                 <p class="text-[11px] text-gray-300 mt-4 bg-gray-950/80 px-3 py-1 rounded-full backdrop-blur-md border border-gray-800">
@@ -449,8 +761,8 @@
                                     <p class="text-xs text-gray-400 mt-1 max-w-xs">Start device camera or upload a QR screenshot to scan.</p>
                                 </div>
                                 <div class="flex flex-wrap gap-2 justify-center">
-                                    <button onclick="startCamera()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all shadow-lg shadow-indigo-600/30 flex items-center gap-2">
-                                        <i class="fa-solid fa-power-off"></i> Start Live Camera
+                                    <button onclick="startCamera()" class="btn-outrun-primary px-6 py-3 flex items-center gap-2">
+                                        <span><i class="fa-solid fa-power-off mr-1"></i> [ &gt; ENGAGE CAMERA SCANNER ]</span>
                                     </button>
                                 </div>
                             </div>
@@ -1047,7 +1359,13 @@
     <!-- MODAL 3: CREATE / EDIT USER MODAL -->
     <!-- ========================================================================= -->
     <div id="user-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+        <div class="outrun-window space-y-0 relative shadow-2xl p-0">
+            <div class="window-titlebar">
+                <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
+                <span>&gt; STAFF_ACCESS_MANAGER // NEW_USER</span>
+                <span class="text-[10px] opacity-75 font-mono">SYS.2088</span>
+            </div>
+            <div class="p-6 space-y-4">
             <button onclick="closeUserModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-base"></i>
             </button>
@@ -1091,13 +1409,20 @@
                 </button>
             </form>
         </div>
+        </div>
     </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 4: RESET USER PASSWORD MODAL -->
     <!-- ========================================================================= -->
     <div id="reset-pwd-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-sm w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+        <div class="outrun-window-magenta space-y-0 relative shadow-2xl p-0">
+            <div class="window-titlebar-magenta">
+                <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
+                <span>&gt; SECURITY_GRID // RESET_CREDENTIALS</span>
+                <span class="text-[10px] opacity-75 font-mono">SYS.2088</span>
+            </div>
+            <div class="p-6 space-y-4">
             <button onclick="closeResetPwdModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-base"></i>
             </button>
@@ -1118,13 +1443,20 @@
                 </button>
             </form>
         </div>
+        </div>
     </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 4B: MY PROFILE & SECURITY (SELF-SERVICE PROFILE EDIT & PASSWORD RESET) -->
     <!-- ========================================================================= -->
     <div id="profile-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+        <div class="outrun-window space-y-0 relative shadow-2xl p-0">
+            <div class="window-titlebar">
+                <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
+                <span>&gt; USER_PROFILE // SECURITY_SETTINGS</span>
+                <span class="text-[10px] opacity-75 font-mono">SYS.2088</span>
+            </div>
+            <div class="p-6 space-y-4">
             <button onclick="closeProfileModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-base"></i>
             </button>
@@ -1205,13 +1537,20 @@
                 </button>
             </div>
         </div>
+        </div>
     </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 4C: EDIT STAFF PROFILE (ADMINISTRATIVE) -->
     <!-- ========================================================================= -->
     <div id="edit-staff-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+        <div class="outrun-window space-y-0 relative shadow-2xl p-0">
+            <div class="window-titlebar">
+                <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
+                <span>&gt; STAFF_DIRECTORY // EDIT_PROFILE</span>
+                <span class="text-[10px] opacity-75 font-mono">SYS.2088</span>
+            </div>
+            <div class="p-6 space-y-4">
             <button onclick="closeEditStaffModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-base"></i>
             </button>
@@ -1261,13 +1600,20 @@
                 </button>
             </form>
         </div>
+        </div>
     </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 5: CREATE / EDIT EVENT MODAL (MASTER_ADMIN) -->
     <!-- ========================================================================= -->
     <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+        <div class="outrun-window space-y-0 relative shadow-2xl p-0">
+            <div class="window-titlebar">
+                <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
+                <span>&gt; EVENT_MAINFRAME // CAMPAIGN_CONFIG</span>
+                <span class="text-[10px] opacity-75 font-mono">SYS.2088</span>
+            </div>
+            <div class="p-6 space-y-4">
             <button onclick="closeCreateEventModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-base"></i>
             </button>
@@ -1379,13 +1725,20 @@
                 </div>
             </form>
         </div>
+        </div>
     </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 5B: 1-CLICK CLONE EVENT MODAL (MASTER_ADMIN) -->
     <!-- ========================================================================= -->
     <div id="clone-event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+        <div class="outrun-window-magenta space-y-0 relative shadow-2xl p-0">
+            <div class="window-titlebar-magenta">
+                <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
+                <span>&gt; EVENT_MAINFRAME // 1-CLICK_CLONE</span>
+                <span class="text-[10px] opacity-75 font-mono">SYS.2088</span>
+            </div>
+            <div class="p-6 space-y-4">
             <button onclick="closeCloneEventModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-base"></i>
             </button>
@@ -1445,13 +1798,20 @@
                 </button>
             </form>
         </div>
+        </div>
     </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 6: QR INSPECT POPUP -->
     <!-- ========================================================================= -->
     <div id="qr-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-sm w-full p-6 rounded-2xl space-y-4 text-center border border-gray-700 relative shadow-2xl">
+        <div class="outrun-window space-y-0 relative shadow-2xl p-0">
+            <div class="window-titlebar">
+                <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
+                <span>&gt; QR_INSPECTOR // ATTENDEE_BADGE</span>
+                <span class="text-[10px] opacity-75 font-mono">SYS.2088</span>
+            </div>
+            <div class="p-6 space-y-4">
             <button onclick="closeQrModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-base"></i>
             </button>
@@ -1496,13 +1856,20 @@
                 </button>
             </div>
         </div>
+        </div>
     </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 7: EMAIL TICKET PASS MODAL (Phase 3) -->
     <!-- ========================================================================= -->
     <div id="email-ticket-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-indigo-500/30 relative shadow-2xl">
+        <div class="outrun-window-magenta space-y-0 relative shadow-2xl p-0">
+            <div class="window-titlebar-magenta">
+                <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
+                <span>&gt; DISPATCH_TERMINAL // BREVO_SHARE</span>
+                <span class="text-[10px] opacity-75 font-mono">SYS.2088</span>
+            </div>
+            <div class="p-6 space-y-4">
             <button onclick="closeEmailTicketModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-base"></i>
             </button>
@@ -1569,6 +1936,9 @@
             </div>
         </div>
     </div>
+        </div>
+    </div>
+    <!-- end outrun-content-wrapper -->
 
     <!-- ========================================================================= -->
     <!-- CORE SCRIPT & APPLICATION LOGIC -->
@@ -2336,16 +2706,18 @@
                 ];
             }
 
-            // Desktop tabs
+            // Desktop tabs (Vaporwave / Outrun Skewed Tabs)
             navTabs.innerHTML = '';
             tabs.forEach((t, i) => {
                 const btn = document.createElement('button');
                 btn.id = `nav-${t.id}`;
                 btn.onclick = () => switchTab(t.id);
-                btn.className = `px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 ${
-                    i === 0 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                btn.className = `px-3.5 py-1.5 text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 -skew-x-6 border ${
+                    i === 0 
+                        ? 'bg-[#00FFFF] text-[#090014] border-[#00FFFF] shadow-[0_0_15px_#00FFFF]' 
+                        : 'text-[#E0E0E0]/70 hover:text-[#00FFFF] hover:bg-[#1a103c] border-transparent'
                 }`;
-                btn.innerHTML = `<i class="fa-solid ${t.icon}"></i> <span>${t.label}</span>`;
+                btn.innerHTML = `<span class="skew-x-6 flex items-center gap-1.5"><i class="fa-solid ${t.icon}"></i> <span>${t.label}</span></span>`;
                 navTabs.appendChild(btn);
             });
 
@@ -2400,22 +2772,22 @@
             const targetView = document.getElementById(`view-${viewId}`);
             if (targetView) targetView.classList.remove('hidden');
 
-            // Update desktop active styles
+            // Update desktop active styles (Outrun Neon Cyan Active)
             document.querySelectorAll('#main-nav-tabs button').forEach(btn => {
-                btn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-all flex items-center space-x-1.5";
+                btn.className = "px-3.5 py-1.5 text-xs font-mono font-medium uppercase tracking-wider text-[#E0E0E0]/70 hover:text-[#00FFFF] hover:bg-[#1a103c] border border-transparent transition-all flex items-center space-x-1.5 -skew-x-6";
             });
             const activeDesktopBtn = document.getElementById(`nav-${viewId}`);
             if (activeDesktopBtn) {
-                activeDesktopBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-md shadow-indigo-600/30 transition-all flex items-center space-x-1.5";
+                activeDesktopBtn.className = "px-3.5 py-1.5 text-xs font-mono font-bold uppercase tracking-wider bg-[#00FFFF] text-[#090014] border border-[#00FFFF] shadow-[0_0_15px_#00FFFF] transition-all flex items-center space-x-1.5 -skew-x-6";
             }
 
             // Update mobile active styles
             document.querySelectorAll('#mobile-nav-strip button').forEach(btn => {
-                btn.className = "px-2 py-1 text-[11px] font-medium text-gray-400 rounded transition-all flex items-center space-x-1";
+                btn.className = "px-2 py-1 text-[11px] font-mono text-[#E0E0E0]/60 transition-all flex items-center space-x-1";
             });
             const activeMobileBtn = document.getElementById(`mobile-nav-${viewId}`);
             if (activeMobileBtn) {
-                activeMobileBtn.className = "px-2 py-1 text-[11px] font-bold text-indigo-400 rounded transition-all flex items-center space-x-1";
+                activeMobileBtn.className = "px-2 py-1 text-[11px] font-mono font-bold text-[#00FFFF] border-b-2 border-[#00FFFF] text-glow-cyan transition-all flex items-center space-x-1";
             }
 
             // If leaving scanner, stop video feed
@@ -2614,13 +2986,25 @@
             const pinForm = document.getElementById('pin-login-form');
 
             if (tab === 'staff') {
-                if (staffBtn) staffBtn.className = "flex-1 py-2 font-semibold rounded-xl bg-indigo-600 text-white transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5";
-                if (pinBtn) pinBtn.className = "flex-1 py-2 font-semibold rounded-xl text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5";
+                if (staffBtn) {
+                    staffBtn.className = "btn-outrun-primary flex-1 py-2.5 flex items-center justify-center gap-2";
+                    staffBtn.style.opacity = "1";
+                }
+                if (pinBtn) {
+                    pinBtn.className = "btn-outrun-secondary flex-1 py-2.5 flex items-center justify-center gap-2 opacity-50";
+                    pinBtn.style.opacity = "0.5";
+                }
                 if (staffForm) staffForm.classList.remove('hidden');
                 if (pinForm) pinForm.classList.add('hidden');
             } else {
-                if (pinBtn) pinBtn.className = "flex-1 py-2 font-semibold rounded-xl bg-emerald-600 text-white transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5";
-                if (staffBtn) staffBtn.className = "flex-1 py-2 font-semibold rounded-xl text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5";
+                if (pinBtn) {
+                    pinBtn.className = "btn-outrun-secondary flex-1 py-2.5 flex items-center justify-center gap-2";
+                    pinBtn.style.opacity = "1";
+                }
+                if (staffBtn) {
+                    staffBtn.className = "btn-outrun-primary flex-1 py-2.5 flex items-center justify-center gap-2 opacity-50";
+                    staffBtn.style.opacity = "0.5";
+                }
                 if (pinForm) pinForm.classList.remove('hidden');
                 if (staffForm) staffForm.classList.add('hidden');
             }
@@ -4178,18 +4562,18 @@
 
                 if (t.status === 'CHECKED_IN') {
                     const reentryBadge = t.reEntryCount ? `<span class="ml-1 text-[9px] px-1 py-0.2 rounded bg-indigo-500/30 text-indigo-200">#${t.reEntryCount}</span>` : '';
-                    statusBadge = `<span class="px-2.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">CHECKED_IN${reentryBadge}</span>`;
+                    statusBadge = `<span class="neon-badge-emerald px-2 py-0.5 text-[10px] font-bold">CHECKED_IN${reentryBadge}</span>`;
                     const timeStr = t.scannedAt ? new Date(t.scannedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Active';
                     scanMeta = `<div>${timeStr}</div><div class="text-[10px] text-gray-500">${escapeHtml(t.scannedGate || 'Gate')} &bull; ${escapeHtml(t.scannedBy || 'Staff')}</div>`;
                 } else if (t.status === 'CHECKED_OUT') {
-                    statusBadge = `<span class="px-2.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">CHECKED_OUT</span>`;
+                    statusBadge = `<span class="neon-badge-orange px-2 py-0.5 text-[10px] font-bold">CHECKED_OUT</span>`;
                     const outTime = t.passedOutAt ? new Date(t.passedOutAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Exit Logged';
                     scanMeta = `<div class="text-amber-400/90">${outTime} (${escapeHtml(t.passOutGate || 'Gate')})</div><div class="text-[10px] text-indigo-400">Eligible for Re-Entry</div>`;
                 } else if (t.status === 'REVOKED') {
-                    statusBadge = `<span class="px-2.5 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/30 font-bold">REVOKED</span>`;
+                    statusBadge = `<span class="neon-badge-magenta px-2 py-0.5 text-[10px] font-bold">REVOKED</span>`;
                     scanMeta = `<span class="text-red-400 text-[11px]">Revoked by Admin</span>`;
                 } else {
-                    statusBadge = `<span class="px-2.5 py-0.5 rounded text-[10px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">VALID</span>`;
+                    statusBadge = `<span class="neon-badge-cyan px-2 py-0.5 text-[10px] font-bold">VALID</span>`;
                     scanMeta = `<span class="text-gray-500">Pending Entry</span>`;
                 }
 
@@ -4199,7 +4583,7 @@
                         <div class="text-[10px] text-gray-400">${escapeHtml(t.attendeeEmail || 'No email registered')}</div>
                     </td>
                     <td class="py-3 px-3">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${escapeHtml(t.tier)}</span>
+                        <span class="neon-badge-magenta px-2 py-0.5 text-[10px] font-bold">${escapeHtml(t.tier)}</span>
                     </td>
                     <td class="py-3 px-3 font-mono text-indigo-300 text-[11px]">
                         ${escapeHtml(t.token.substring(0, 16))}...
@@ -4297,13 +4681,13 @@
                 let badgeClass = 'bg-gray-800 text-gray-300';
 
                 if (log.resultType === 'SUCCESS_CHECKIN') {
-                    badgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                    badgeClass = 'neon-badge-emerald';
                 } else if (log.resultType === 'SUCCESS_REENTRY') {
-                    badgeClass = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold';
+                    badgeClass = 'neon-badge-cyan font-bold';
                 } else if (log.resultType === 'PASS_OUT') {
-                    badgeClass = 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold';
+                    badgeClass = 'neon-badge-orange font-bold';
                 } else if (log.resultType === 'REJECTED_DUPLICATE') {
-                    badgeClass = 'bg-red-500/20 text-red-300 border border-red-500/30 font-bold';
+                    badgeClass = 'neon-badge-magenta font-bold';
                 } else if (log.resultType === 'REJECTED_INVALID' || log.resultType === 'REJECTED_TIER_RESTRICTION') {
                     badgeClass = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
                 } else if (['REJECTED_FORGERY', 'OFFLINE_COLLISION_DUPLICATE', 'TICKET_REVOKED'].includes(log.resultType)) {
@@ -4638,13 +5022,13 @@
                         <div class="text-[10px] text-gray-400">${escapeHtml(u.fullName || '--')}</div>
                     </td>
                     <td class="py-3 px-3">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-800 text-indigo-300 border border-gray-700">${escapeHtml(u.role)}</span>
+                        <span class="neon-badge-cyan px-2 py-0.5 text-[10px] font-bold">${escapeHtml(u.role)}</span>
                     </td>
                     <td class="py-3 px-3 text-gray-400 text-xs">${u.email ? escapeHtml(u.email) : '<span class="text-gray-600 font-mono">None</span>'}</td>
                     <td class="py-3 px-3 text-xs text-indigo-300 font-mono">${escapeHtml(assignedNames)}</td>
                     <td class="py-3 px-3">
                         <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${
-                            u.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                            u.status === 'ACTIVE' ? 'neon-badge-emerald' : 'neon-badge-magenta'
                         }">${escapeHtml(u.status)}</span>
                     </td>
                     <td class="py-3 px-3 text-right space-x-1.5 whitespace-nowrap">
@@ -5032,12 +5416,12 @@
             eventsState.forEach(ev => {
                 const count = ticketsState.filter(t => t.eventId === ev.id).length;
                 const card = document.createElement('div');
-                card.className = `glass-panel p-5 rounded-2xl space-y-4 border ${ev.id === activeEventId ? 'border-indigo-500 shadow-lg shadow-indigo-600/20' : 'border-gray-800'}`;
+                card.className = `outrun-window p-5 space-y-4 ${ev.id === activeEventId ? 'border-2 border-[#00FFFF] shadow-[0_0_20px_rgba(0,255,255,0.4)]' : 'border border-[#FF00FF]/30'}`;
 
                 card.innerHTML = `
                     <div class="flex items-start justify-between gap-2">
                         <div>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300">${escapeHtml(ev.code)}</span>
+                            <span class="neon-badge-cyan px-2 py-0.5 text-[10px] font-mono font-bold">${escapeHtml(ev.code)}</span>
                             <h3 class="text-base font-bold text-white mt-1.5">${escapeHtml(ev.name)}</h3>
                             <p class="text-xs text-gray-400 mt-0.5"><i class="fa-solid fa-location-dot mr-1 text-indigo-400"></i> ${escapeHtml(ev.location)}</p>
                         </div>
@@ -6068,13 +6452,13 @@
             const el = document.getElementById('toast');
             if (!el) return;
             const styles = {
-                error: 'bg-red-950/95 text-red-200 border-red-500/40 shadow-red-950/50',
-                ok: 'bg-emerald-950/95 text-emerald-200 border-emerald-500/40 shadow-emerald-950/50',
-                info: 'bg-slate-900/95 text-slate-200 border-slate-500/40 shadow-slate-950/50',
-                warning: 'bg-amber-950/95 text-amber-200 border-amber-500/40 shadow-amber-950/50'
+                error: 'bg-[#1a0014]/95 text-[#FF0055] border-2 border-[#FF0055] shadow-[0_0_25px_#FF0055]',
+                ok: 'bg-[#001a14]/95 text-[#00FFFF] border-2 border-[#00FFFF] shadow-[0_0_25px_#00FFFF]',
+                info: 'bg-[#1a103c]/95 text-[#00FFFF] border-2 border-[#FF00FF] shadow-[0_0_25px_#FF00FF]',
+                warning: 'bg-[#1a1000]/95 text-[#FF9900] border-2 border-[#FF9900] shadow-[0_0_25px_#FF9900]'
             };
-            el.className = `fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] max-w-sm w-[90%] px-4 py-2.5 rounded-xl text-xs text-center border backdrop-blur-md shadow-2xl transition-all ${styles[type] || styles.error}`;
-            el.textContent = msg;
+            el.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] max-w-sm w-[90%] px-4 py-3 rounded-none font-mono uppercase tracking-wider text-xs text-center backdrop-blur-xl transition-all ${styles[type] || styles.error}`;
+            el.innerHTML = `&gt; ${escapeHtml(msg)}`;
             clearTimeout(notify.timer);
             notify.timer = setTimeout(() => el.classList.add('hidden'), ms);
         }

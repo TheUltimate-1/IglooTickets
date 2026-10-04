@@ -2,7 +2,7 @@
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FTheUltimate-1%2FIglooTickets)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.6.1-emerald.svg)](config.js)
+[![Version](https://img.shields.io/badge/version-3.0.0-emerald.svg)](config.js)
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready-purple.svg)](manifest.json)
 [![Database: Supabase](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-3ECF8E.svg)](schema.sql)
 

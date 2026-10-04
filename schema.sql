@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS public.events (
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS capacity INT NOT NULL DEFAULT 500;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS stations JSONB NOT NULL DEFAULT '["Gate 1 (Main Entrance)", "Gate 2 (VIP / Media)", "North Turnstile", "South Turnstile"]'::jsonb;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS created_by UUID DEFAULT auth.uid();
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS signing_secret TEXT DEFAULT uuid_generate_v4()::text;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS gate_restrictions JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS logo_url TEXT DEFAULT NULL;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#0284c7';
 
 -- 2. Staff profiles (identity + password live in auth.users, never here) ----
 CREATE TABLE IF NOT EXISTS public.app_users (
@@ -120,15 +124,18 @@ CREATE TABLE IF NOT EXISTS public.gate_sessions (
 );
 CREATE TABLE IF NOT EXISTS public.gate_login_failures (
     id BIGSERIAL PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     event_code TEXT NOT NULL,
     attempted_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.gate_login_failures ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 
 CREATE INDEX IF NOT EXISTS idx_tickets_token ON public.tickets(token);
 CREATE INDEX IF NOT EXISTS idx_tickets_event_id ON public.tickets(event_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_event_id ON public.audit_logs(event_id);
 CREATE INDEX IF NOT EXISTS idx_events_code ON public.events(code);
-CREATE INDEX IF NOT EXISTS idx_gate_failures ON public.gate_login_failures(event_code, attempted_at);
+CREATE INDEX IF NOT EXISTS idx_gate_failures ON public.gate_login_failures(user_id, attempted_at);
+CREATE INDEX IF NOT EXISTS idx_gate_failures_code ON public.gate_login_failures(event_code, attempted_at);
 
 -- =========================================================================
 -- 6. Access helper functions
@@ -182,7 +189,17 @@ CREATE POLICY events_delete ON public.events FOR DELETE TO authenticated
 
 -- app_users (inserts/deletes happen only through the staff-admin Edge Function)
 CREATE POLICY app_users_select ON public.app_users FOR SELECT TO authenticated
-    USING (id = auth.uid() OR public.app_role() = 'MASTER_ADMIN');
+    USING (
+        id = auth.uid()
+        OR public.app_role() = 'MASTER_ADMIN'
+        OR (public.app_role() = 'EVENT_ADMIN'
+            AND role IN ('TICKETING_AGENT', 'TICKET_SCANNER')
+            AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(assigned_event_ids, '[]'::jsonb)) e
+                        WHERE public.can_access_event(e::uuid)))
+    );
+-- Only the user themself or the Master Admin may update a profile directly (privileged
+-- columns are blocked for non-masters by trg_guard_app_users_update). Event Admins manage
+-- their agents/scanners through the staff-admin Edge Function.
 CREATE POLICY app_users_update ON public.app_users FOR UPDATE TO authenticated
     USING (id = auth.uid() OR public.app_role() = 'MASTER_ADMIN')
     WITH CHECK (id = auth.uid() OR public.app_role() = 'MASTER_ADMIN');
@@ -245,6 +262,27 @@ DROP TRIGGER IF EXISTS trg_assign_event_to_creator ON public.events;
 CREATE TRIGGER trg_assign_event_to_creator AFTER INSERT ON public.events
     FOR EACH ROW EXECUTE FUNCTION public.assign_event_to_creator();
 
+-- Audit rows written by a signed-in client always carry the server-resolved staff
+-- name and timestamp, so a client cannot attribute an entry to someone else.
+CREATE OR REPLACE FUNCTION public.guard_audit_insert()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+    v_name TEXT;
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RETURN NEW; -- service role / internal
+    END IF;
+    SELECT COALESCE(full_name, username) INTO v_name
+    FROM public.app_users WHERE id = auth.uid() AND status = 'ACTIVE';
+    NEW.staff_name := COALESCE(v_name, format('Gate Scanner [%s]', COALESCE(NEW.gate, 'Gate')));
+    NEW.created_at := NOW();
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_guard_audit_insert ON public.audit_logs;
+CREATE TRIGGER trg_guard_audit_insert BEFORE INSERT ON public.audit_logs
+    FOR EACH ROW EXECUTE FUNCTION public.guard_audit_insert();
+
 -- Realtime (RLS applies to realtime events too)
 DO $$
 BEGIN
@@ -273,16 +311,24 @@ BEGIN
     END IF;
 
     DELETE FROM public.gate_login_failures WHERE attempted_at < NOW() - INTERVAL '1 hour';
+    -- Rate-limit per session so one device cannot lock out the other gates
     IF (SELECT COUNT(*) FROM public.gate_login_failures
-        WHERE event_code = v_code AND attempted_at > NOW() - INTERVAL '10 minutes') >= 10 THEN
-        RETURN jsonb_build_object('success', false, 'message', 'Too many failed attempts. Try again in 10 minutes.');
+        WHERE user_id = auth.uid() AND attempted_at > NOW() - INTERVAL '10 minutes') >= 5 THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Too many failed attempts from this device. Please wait 10 minutes.');
+    END IF;
+    -- Backstop: a new anonymous session resets the per-session counter, so also cap total
+    -- failures per event code. The ceiling is high enough that normal use never reaches it,
+    -- but it keeps a 4-digit PIN from being brute-forced across many sessions.
+    IF (SELECT COUNT(*) FROM public.gate_login_failures
+        WHERE UPPER(event_code) = v_code AND attempted_at > NOW() - INTERVAL '1 hour') >= 100 THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Too many failed attempts for this event. Please try again later or contact the event administrator.');
     END IF;
 
     SELECT * INTO v_event FROM public.events
     WHERE UPPER(code) = v_code AND gate_pin = p_pin AND status = 'ACTIVE';
 
     IF NOT FOUND THEN
-        INSERT INTO public.gate_login_failures (event_code) VALUES (v_code);
+        INSERT INTO public.gate_login_failures (user_id, event_code) VALUES (auth.uid(), v_code);
         RETURN jsonb_build_object('success', false, 'message', 'Invalid event code or PIN.');
     END IF;
 
@@ -293,38 +339,58 @@ BEGIN
 END;
 $$;
 
--- Atomic check-in / re-entry (row-locked). Staff identity comes from the session.
+-- Atomic check-in / re-entry (row-locked). Staff identity is verified server-side.
 CREATE OR REPLACE FUNCTION public.check_in_ticket_rpc(
-    p_event_id UUID, p_token TEXT, p_gate TEXT, p_scanner_user TEXT
+    p_event_id UUID, p_token TEXT, p_gate TEXT, p_scanner_user TEXT DEFAULT NULL
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
     v_ticket RECORD;
     v_is_reentry BOOLEAN := false;
     v_staff TEXT;
+    v_gate TEXT := COALESCE(NULLIF(TRIM(p_gate), ''), 'Main Gate');
+    v_restrictions JSONB;
 BEGIN
     IF NOT public.can_access_event(p_event_id) THEN
         RETURN jsonb_build_object('success', false, 'reason', 'FORBIDDEN', 'message', 'You do not have access to this event.');
     END IF;
-    v_staff := COALESCE((SELECT COALESCE(full_name, username) FROM public.app_users WHERE id = auth.uid()), NULLIF(p_scanner_user, ''), 'Gate Scanner');
+
+    -- Resolve scanner staff identity securely: registered staff uses DB profile; gate PIN session is bound to station
+    SELECT COALESCE(full_name, username) INTO v_staff FROM public.app_users WHERE id = auth.uid() AND status = 'ACTIVE';
+    IF v_staff IS NULL THEN
+        v_staff := format('Gate Scanner [%s]', v_gate);
+    END IF;
 
     SELECT * INTO v_ticket FROM public.tickets
     WHERE event_id = p_event_id AND LOWER(token) = LOWER(p_token) FOR UPDATE;
 
     IF NOT FOUND THEN
         INSERT INTO public.audit_logs (event_id, token, attendee_name, result_type, gate, staff_name, notes)
-        VALUES (p_event_id, p_token, 'Unknown Attendee', 'REJECTED_INVALID', p_gate, v_staff, 'Ticket not registered for this event');
+        VALUES (p_event_id, p_token, 'Unknown Attendee', 'REJECTED_INVALID', v_gate, v_staff, 'Ticket not registered for this event');
         RETURN jsonb_build_object('success', false, 'reason', 'INVALID', 'message', 'Ticket not found in this event registry.');
     END IF;
 
     IF v_ticket.status = 'REVOKED' THEN
         INSERT INTO public.audit_logs (event_id, token, attendee_name, result_type, gate, staff_name, notes)
-        VALUES (p_event_id, v_ticket.token, v_ticket.attendee_name, 'REJECTED_INVALID', p_gate, v_staff, 'Ticket has been revoked');
+        VALUES (p_event_id, v_ticket.token, v_ticket.attendee_name, 'REJECTED_INVALID', v_gate, v_staff, 'Ticket has been revoked');
         RETURN jsonb_build_object('success', false, 'reason', 'REVOKED', 'message', 'This ticket has been revoked by event administration.');
+    END IF;
+
+    -- Gate tier restriction check
+    SELECT gate_restrictions INTO v_restrictions FROM public.events WHERE id = p_event_id;
+    IF v_restrictions IS NOT NULL AND v_restrictions ? v_gate THEN
+        IF jsonb_array_length(v_restrictions->v_gate) > 0 AND NOT (v_restrictions->v_gate ? v_ticket.tier) THEN
+            INSERT INTO public.audit_logs (event_id, token, attendee_name, result_type, gate, staff_name, notes)
+            VALUES (p_event_id, v_ticket.token, v_ticket.attendee_name, 'REJECTED_TIER_RESTRICTION', v_gate, v_staff,
+                    format('Gate restriction: Tier "%s" is not permitted at %s', v_ticket.tier, v_gate));
+            RETURN jsonb_build_object('success', false, 'reason', 'TIER_RESTRICTION',
+                'message', format('Gate restriction: Pass tier "%s" is not valid at %s. Please direct attendee to an authorized entrance.', v_ticket.tier, v_gate),
+                'attendee_name', v_ticket.attendee_name, 'tier', v_ticket.tier);
+        END IF;
     END IF;
 
     IF v_ticket.status = 'CHECKED_IN' THEN
         INSERT INTO public.audit_logs (event_id, token, attendee_name, result_type, gate, staff_name, notes)
-        VALUES (p_event_id, v_ticket.token, v_ticket.attendee_name, 'REJECTED_DUPLICATE', p_gate, v_staff,
+        VALUES (p_event_id, v_ticket.token, v_ticket.attendee_name, 'REJECTED_DUPLICATE', v_gate, v_staff,
                 format('Duplicate entry attempt. Original scan at %s via %s', v_ticket.scanned_at, v_ticket.scanned_gate));
         RETURN jsonb_build_object('success', false, 'reason', 'DUPLICATE',
             'attendee_name', v_ticket.attendee_name, 'tier', v_ticket.tier, 'token', v_ticket.token,
@@ -334,34 +400,39 @@ BEGIN
     IF v_ticket.status = 'CHECKED_OUT' THEN v_is_reentry := true; END IF;
 
     UPDATE public.tickets
-    SET status = 'CHECKED_IN', scanned_at = NOW(), scanned_gate = p_gate, scanned_by = v_staff,
+    SET status = 'CHECKED_IN', scanned_at = NOW(), scanned_gate = v_gate, scanned_by = v_staff,
         re_entry_count = COALESCE(re_entry_count, 0) + CASE WHEN v_is_reentry THEN 1 ELSE 0 END
     WHERE id = v_ticket.id;
 
     INSERT INTO public.audit_logs (event_id, token, attendee_name, result_type, gate, staff_name, notes)
     VALUES (p_event_id, v_ticket.token, v_ticket.attendee_name,
-            CASE WHEN v_is_reentry THEN 'SUCCESS_REENTRY' ELSE 'SUCCESS_CHECKIN' END, p_gate, v_staff,
+            CASE WHEN v_is_reentry THEN 'SUCCESS_REENTRY' ELSE 'SUCCESS_CHECKIN' END, v_gate, v_staff,
             CASE WHEN v_is_reentry THEN format('Re-entry approved (Exit was logged at %s)', v_ticket.passed_out_at)
-                 ELSE format('Entry approved via %s', p_gate) END);
+                 ELSE format('Entry approved via %s', v_gate) END);
 
     RETURN jsonb_build_object('success', true, 'is_reentry', v_is_reentry,
         'attendee_name', v_ticket.attendee_name, 'tier', v_ticket.tier, 'token', v_ticket.token,
-        'scanned_at', NOW(), 'scanned_gate', p_gate);
+        'scanned_at', NOW(), 'scanned_gate', v_gate);
 END;
 $$;
 
 -- Atomic pass-out / exit (row-locked)
 CREATE OR REPLACE FUNCTION public.pass_out_ticket_rpc(
-    p_event_id UUID, p_token TEXT, p_gate TEXT, p_scanner_user TEXT
+    p_event_id UUID, p_token TEXT, p_gate TEXT, p_scanner_user TEXT DEFAULT NULL
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
     v_ticket RECORD;
     v_staff TEXT;
+    v_gate TEXT := COALESCE(NULLIF(TRIM(p_gate), ''), 'Main Gate');
 BEGIN
     IF NOT public.can_access_event(p_event_id) THEN
         RETURN jsonb_build_object('success', false, 'reason', 'FORBIDDEN', 'message', 'You do not have access to this event.');
     END IF;
-    v_staff := COALESCE((SELECT COALESCE(full_name, username) FROM public.app_users WHERE id = auth.uid()), NULLIF(p_scanner_user, ''), 'Gate Scanner');
+
+    SELECT COALESCE(full_name, username) INTO v_staff FROM public.app_users WHERE id = auth.uid() AND status = 'ACTIVE';
+    IF v_staff IS NULL THEN
+        v_staff := format('Gate Scanner [%s]', v_gate);
+    END IF;
 
     SELECT * INTO v_ticket FROM public.tickets
     WHERE event_id = p_event_id AND LOWER(token) = LOWER(p_token) FOR UPDATE;
@@ -383,15 +454,15 @@ BEGIN
             'attendee_name', v_ticket.attendee_name, 'tier', v_ticket.tier);
     END IF;
 
-    UPDATE public.tickets SET status = 'CHECKED_OUT', passed_out_at = NOW(), pass_out_gate = p_gate
+    UPDATE public.tickets SET status = 'CHECKED_OUT', passed_out_at = NOW(), pass_out_gate = v_gate
     WHERE id = v_ticket.id;
 
     INSERT INTO public.audit_logs (event_id, token, attendee_name, result_type, gate, staff_name, notes)
-    VALUES (p_event_id, v_ticket.token, v_ticket.attendee_name, 'PASS_OUT', p_gate, v_staff,
-            format('Pass-out / exit logged via %s', p_gate));
+    VALUES (p_event_id, v_ticket.token, v_ticket.attendee_name, 'PASS_OUT', v_gate, v_staff,
+            format('Pass-out / exit logged via %s', v_gate));
 
     RETURN jsonb_build_object('success', true, 'attendee_name', v_ticket.attendee_name,
-        'tier', v_ticket.tier, 'token', v_ticket.token, 'passed_out_at', NOW(), 'pass_out_gate', p_gate);
+        'tier', v_ticket.tier, 'token', v_ticket.token, 'passed_out_at', NOW(), 'pass_out_gate', v_gate);
 END;
 $$;
 
@@ -419,16 +490,48 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'Source event not found.');
     END IF;
 
-    INSERT INTO public.events (id, name, code, date, location, gate_pin, tiers, stations, capacity, status, created_by)
+    INSERT INTO public.events (id, name, code, date, location, gate_pin, tiers, stations, capacity, status, created_by, gate_restrictions, logo_url, brand_color)
     VALUES (v_new_id, p_new_name, UPPER(p_new_code), p_new_date, p_new_location,
             COALESCE(p_new_pin, v_source.gate_pin, '1234'),
             COALESCE(p_new_tiers, v_source.tiers, '["VIP Pass", "Standard Pass"]'::jsonb),
             COALESCE(p_new_stations, v_source.stations, '["Gate 1 (Main Entrance)", "Gate 2 (VIP / Media)", "North Turnstile", "South Turnstile"]'::jsonb),
-            COALESCE(p_new_capacity, v_source.capacity, 500), 'ACTIVE', auth.uid());
+            COALESCE(p_new_capacity, v_source.capacity, 500), 'ACTIVE', auth.uid(),
+            COALESCE(v_source.gate_restrictions, '{}'::jsonb),
+            v_source.logo_url, COALESCE(v_source.brand_color, '#0284c7'));
     -- trg_assign_event_to_creator grants the creator access automatically.
 
     RETURN jsonb_build_object('success', true, 'id', v_new_id, 'name', p_new_name, 'code', UPPER(p_new_code),
         'date', p_new_date, 'location', p_new_location, 'capacity', COALESCE(p_new_capacity, v_source.capacity, 500));
+END;
+$$;
+
+-- Atomic ticket revocation (with audit trail)
+CREATE OR REPLACE FUNCTION public.revoke_ticket_rpc(
+    p_ticket_id UUID, p_reason TEXT DEFAULT 'Manually revoked by staff'
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+    v_ticket RECORD;
+    v_staff TEXT;
+BEGIN
+    SELECT * INTO v_ticket FROM public.tickets WHERE id = p_ticket_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Ticket not found.');
+    END IF;
+
+    IF NOT public.can_access_event(v_ticket.event_id) OR public.app_role() NOT IN ('MASTER_ADMIN', 'EVENT_ADMIN', 'TICKETING_AGENT') THEN
+        RETURN jsonb_build_object('success', false, 'message', 'You do not have permission to revoke tickets for this event.');
+    END IF;
+
+    SELECT COALESCE(full_name, username) INTO v_staff FROM public.app_users WHERE id = auth.uid();
+
+    UPDATE public.tickets
+    SET status = 'REVOKED', notes = COALESCE(notes || E'\n', '') || format('[REVOKED by %s on %s: %s]', COALESCE(v_staff, 'Staff'), NOW()::text, COALESCE(p_reason, ''))
+    WHERE id = v_ticket.id;
+
+    INSERT INTO public.audit_logs (event_id, token, attendee_name, result_type, gate, staff_name, notes)
+    VALUES (v_ticket.event_id, v_ticket.token, v_ticket.attendee_name, 'TICKET_REVOKED', 'Administration Desk', COALESCE(v_staff, 'Staff'), COALESCE(p_reason, 'Ticket manually revoked'));
+
+    RETURN jsonb_build_object('success', true, 'attendee_name', v_ticket.attendee_name, 'token', v_ticket.token);
 END;
 $$;
 
@@ -439,10 +542,12 @@ REVOKE ALL ON FUNCTION public.gate_login_rpc(TEXT, TEXT) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.check_in_ticket_rpc(UUID, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.pass_out_ticket_rpc(UUID, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB, JSONB) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.revoke_ticket_rpc(UUID, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.gate_login_rpc(TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.check_in_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.pass_out_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.revoke_ticket_rpc(UUID, TEXT) TO authenticated;
 
 -- The anon role (not signed in at all) gets no table access whatsoever.
 REVOKE ALL ON public.events, public.app_users, public.tickets, public.audit_logs,

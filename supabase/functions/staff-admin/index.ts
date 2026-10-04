@@ -13,6 +13,7 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const ALL_ROLES = ["MASTER_ADMIN", "EVENT_ADMIN", "TICKETING_AGENT", "TICKET_SCANNER"];
 const STAFF_ROLES = ["EVENT_ADMIN", "TICKETING_AGENT", "TICKET_SCANNER"];
 const EVENT_ADMIN_MANAGEABLE = ["TICKETING_AGENT", "TICKET_SCANNER"];
 const MIN_PASSWORD = 8;
@@ -163,10 +164,11 @@ Deno.serve(async (req) => {
         const authEmail = hasCustomEmail ? email : `${username}@staff.iglootickets.internal`;
 
         if (password.length < MIN_PASSWORD) return fail(`Password must be at least ${MIN_PASSWORD} characters.`);
-        if (!STAFF_ROLES.includes(role)) return fail("Invalid role.");
+        const allowedRoles = isMaster ? ALL_ROLES : EVENT_ADMIN_MANAGEABLE;
+        if (!allowedRoles.includes(role)) return fail("Invalid role.");
         if (!isMaster && !EVENT_ADMIN_MANAGEABLE.includes(role)) return fail("Event Admins can only create agents and scanners.", 403);
         if (!isMaster && events.length === 0) return fail("You must assign at least one of your events.", 400);
-        if (!eventsAllowed(events)) return fail("You can only assign your own events.", 403);
+        if (events.length > 0 && !eventsAllowed(events)) return fail("You can only assign your own events.", 403);
 
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
           email: authEmail, password, email_confirm: true,
@@ -210,7 +212,8 @@ Deno.serve(async (req) => {
         }
         if (body.role !== undefined) {
           if (!isMaster) return fail("Only the Master Admin can change roles.", 403);
-          if (target!.role === "MASTER_ADMIN" || !STAFF_ROLES.includes(body.role)) return fail("Invalid role change.");
+          if (target!.role === "MASTER_ADMIN" && body.role !== "MASTER_ADMIN") return fail("Master Admins cannot be demoted.", 400);
+          if (!ALL_ROLES.includes(body.role)) return fail("Invalid role change.");
           patch.role = body.role;
         }
         if (body.status !== undefined) {

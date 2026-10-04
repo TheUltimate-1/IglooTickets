@@ -154,7 +154,14 @@ Deno.serve(async (req) => {
         const events = cleanIds(body.assignedEventIds);
 
         if (!/^[a-z0-9._-]{3,32}$/.test(username)) return fail("Username must be 3-32 letters, numbers, dots, dashes or underscores.");
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("A valid email address is required.");
+
+        // Staff email is optional. If not provided, generate an internal auth email
+        const hasCustomEmail = Boolean(email && email.length > 0);
+        if (hasCustomEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+          return fail("Please enter a valid email address or leave it blank.");
+        }
+        const authEmail = hasCustomEmail ? email : `${username}@staff.iglootickets.internal`;
+
         if (password.length < MIN_PASSWORD) return fail(`Password must be at least ${MIN_PASSWORD} characters.`);
         if (!STAFF_ROLES.includes(role)) return fail("Invalid role.");
         if (!isMaster && !EVENT_ADMIN_MANAGEABLE.includes(role)) return fail("Event Admins can only create agents and scanners.", 403);
@@ -162,13 +169,18 @@ Deno.serve(async (req) => {
         if (!eventsAllowed(events)) return fail("You can only assign your own events.", 403);
 
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
-          email, password, email_confirm: true,
+          email: authEmail, password, email_confirm: true,
         });
         if (createErr || !created?.user) return fail(createErr?.message ?? "Could not create account.");
 
         const { error: insErr } = await admin.from("app_users").insert({
-          id: created.user.id, username, email, role,
-          full_name: fullName || username, assigned_event_ids: events, status: "ACTIVE",
+          id: created.user.id,
+          username,
+          email: hasCustomEmail ? email : null,
+          role,
+          full_name: fullName || username,
+          assigned_event_ids: events,
+          status: "ACTIVE",
         });
         if (insErr) {
           await admin.auth.admin.deleteUser(created.user.id);
@@ -181,8 +193,15 @@ Deno.serve(async (req) => {
         const { target, error } = await loadTarget(body.userId);
         if (error) return error;
         const patch: Record<string, unknown> = {};
-        if (typeof body.fullName === "string") patch.full_name = body.fullName.trim();
-        if (typeof body.email === "string" && body.email.trim()) patch.email = body.email.trim().toLowerCase();
+        if (typeof body.email === "string") {
+          const cleanEmail = body.email.trim().toLowerCase();
+          if (cleanEmail) {
+            if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) return fail("Please enter a valid email address.");
+            patch.email = cleanEmail;
+          } else {
+            patch.email = null;
+          }
+        }
         if (body.assignedEventIds !== undefined) {
           const ids = cleanIds(body.assignedEventIds);
           if (!isMaster && ids.length === 0) return fail("You must assign at least one of your events.", 400);
@@ -199,8 +218,9 @@ Deno.serve(async (req) => {
           if (target!.id === caller.id) return fail("You cannot change your own status.");
           patch.status = body.status;
         }
-        if (patch.email) {
-          const { error: e } = await admin.auth.admin.updateUserById(target!.id, { email: patch.email as string, email_confirm: true });
+        if (patch.email !== undefined) {
+          const authEmail = patch.email ? (patch.email as string) : `${target!.username}@staff.iglootickets.internal`;
+          const { error: e } = await admin.auth.admin.updateUserById(target!.id, { email: authEmail, email_confirm: true });
           if (e) return fail(e.message);
         }
         const { error: upErr } = await admin.from("app_users").update(patch).eq("id", target!.id);

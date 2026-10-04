@@ -336,6 +336,47 @@ BEGIN
 END;
 $$;
 
+-- Resolve username or email to Supabase Auth login email
+CREATE OR REPLACE FUNCTION public.resolve_login_identifier(p_identifier TEXT)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+    v_clean TEXT := LOWER(TRIM(COALESCE(p_identifier, '')));
+    v_user RECORD;
+    v_auth_email TEXT;
+BEGIN
+    IF v_clean = '' THEN
+        RETURN jsonb_build_object('success', false);
+    END IF;
+
+    -- If identifier already contains '@', use directly
+    IF v_clean LIKE '%@%' THEN
+        RETURN jsonb_build_object('success', true, 'email', v_clean);
+    END IF;
+
+    -- Find staff in public.app_users by username
+    SELECT u.id, u.email INTO v_user
+    FROM public.app_users u
+    WHERE LOWER(u.username) = v_clean AND u.status = 'ACTIVE';
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', true, 'email', v_clean || '@staff.iglootickets.internal');
+    END IF;
+
+    -- If they have an explicit custom email saved, use that
+    IF v_user.email IS NOT NULL AND v_user.email <> '' THEN
+        RETURN jsonb_build_object('success', true, 'email', v_user.email);
+    END IF;
+
+    -- Otherwise check auth.users or fallback to synthetic internal address
+    SELECT email INTO v_auth_email FROM auth.users WHERE id = v_user.id;
+    IF v_auth_email IS NOT NULL AND v_auth_email <> '' THEN
+        RETURN jsonb_build_object('success', true, 'email', v_auth_email);
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'email', v_clean || '@staff.iglootickets.internal');
+END;
+$$;
+
 -- Atomic check-in / re-entry (row-locked). Staff identity is verified server-side.
 CREATE OR REPLACE FUNCTION public.check_in_ticket_rpc(
     p_event_id UUID, p_token TEXT, p_gate TEXT, p_scanner_user TEXT DEFAULT NULL
@@ -541,6 +582,7 @@ REVOKE ALL ON FUNCTION public.pass_out_ticket_rpc(UUID, TEXT, TEXT, TEXT) FROM P
 REVOKE ALL ON FUNCTION public.clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB, JSONB) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.revoke_ticket_rpc(UUID, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.gate_login_rpc(TEXT, TEXT) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.resolve_login_identifier(TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.check_in_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.pass_out_ticket_rpc(UUID, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.clone_event_rpc(UUID, TEXT, TEXT, TEXT, TEXT, UUID, UUID, TEXT, INT, JSONB, JSONB) TO authenticated;

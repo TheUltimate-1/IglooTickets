@@ -1574,8 +1574,8 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Email Address</label>
-                    <input type="email" id="edit-staff-email" placeholder="staff@example.com" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Email Address (Optional)</label>
+                    <input type="email" id="edit-staff-email" placeholder="staff@example.com (optional)" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
                 </div>
 
                 <div id="edit-staff-role-group">
@@ -3023,13 +3023,42 @@
                 return;
             }
 
-            const emailInput = document.getElementById('login-username').value.trim().toLowerCase();
+            const rawIdentifier = document.getElementById('login-username').value.trim();
             const passwordInput = document.getElementById('login-password').value;
             const submitBtn = e.submitter || document.querySelector('#staff-login-form button[type="submit"]');
             if (submitBtn) submitBtn.disabled = true;
 
             try {
-                const { data, error } = await supabaseClient.auth.signInWithPassword({ email: emailInput, password: passwordInput });
+                let loginEmail = rawIdentifier.toLowerCase();
+
+                // If user entered a username (no '@'), resolve it via RPC or use synthetic internal email
+                if (!loginEmail.includes('@')) {
+                    try {
+                        const { data: res } = await supabaseClient.rpc('resolve_login_identifier', { p_identifier: rawIdentifier });
+                        if (res && res.success && res.email) {
+                            loginEmail = res.email;
+                        } else {
+                            loginEmail = `${loginEmail}@staff.iglootickets.internal`;
+                        }
+                    } catch (lookupErr) {
+                        loginEmail = `${loginEmail}@staff.iglootickets.internal`;
+                    }
+                }
+
+                let { data, error } = await supabaseClient.auth.signInWithPassword({ email: loginEmail, password: passwordInput });
+
+                // If login with resolved email failed and user entered a username, try synthetic email directly
+                if (error && !rawIdentifier.includes('@') && loginEmail !== `${rawIdentifier.toLowerCase()}@staff.iglootickets.internal`) {
+                    const fallback = await supabaseClient.auth.signInWithPassword({
+                        email: `${rawIdentifier.toLowerCase()}@staff.iglootickets.internal`,
+                        password: passwordInput
+                    });
+                    if (!fallback.error && fallback.data?.user) {
+                        data = fallback.data;
+                        error = null;
+                    }
+                }
+
                 if (error || !data?.user) {
                     staffLoginAttempts++;
                     if (staffLoginAttempts >= 5) {
@@ -3037,7 +3066,7 @@
                         staffLoginAttempts = 0;
                         notify("Too many invalid login attempts. Locked for 15 seconds.", "error");
                     } else {
-                        notify("Invalid email or password.", "error");
+                        notify("Invalid username, email, or password.", "error");
                     }
                     return;
                 }
@@ -5370,8 +5399,7 @@
                 selectedEventIds.push(cb.value);
             });
 
-            const patch = { action: 'update', userId, fullName, assignedEventIds: selectedEventIds };
-            if (email) patch.email = email;
+            const patch = { action: 'update', userId, fullName, assignedEventIds: selectedEventIds, email: email };
             if (isMaster && user.role !== 'MASTER_ADMIN') patch.role = document.getElementById('edit-staff-role').value;
 
             let res;

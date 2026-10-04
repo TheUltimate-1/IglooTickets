@@ -1472,9 +1472,15 @@
                 <p class="font-mono text-gray-400 text-[10px] break-all" id="modal-qr-token">--</p>
             </div>
 
-            <div class="pt-2 grid grid-cols-2 gap-2 text-xs">
+            <div class="pt-2 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                 <button onclick="downloadActiveModalPdf()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors">
                     <i class="fa-solid fa-file-pdf text-red-400"></i> PDF Ticket
+                </button>
+                <button onclick="shareActiveModalWhatsApp()" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-emerald-500/30 transition-colors" title="Send pass details via WhatsApp">
+                    <i class="fa-brands fa-whatsapp text-emerald-400 text-sm"></i> WhatsApp
+                </button>
+                <button onclick="shareActiveModalNative()" class="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-blue-500/30 transition-colors" title="Share via System Sheet / AirDrop / Messages">
+                    <i class="fa-solid fa-arrow-up-from-bracket text-blue-400"></i> Share
                 </button>
                 <button onclick="downloadActiveModalIcs()" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5 border border-gray-700 transition-colors" title="Download RFC 5545 .ics Calendar Invite">
                     <i class="fa-solid fa-calendar-plus text-amber-400"></i> .ics Calendar
@@ -1499,7 +1505,7 @@
             </button>
 
             <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fa-solid fa-envelope-circle-check text-indigo-400"></i> Dispatch Ticket Email
+                <i class="fa-solid fa-envelope-circle-check text-indigo-400"></i> Dispatch & Share Pass
             </h3>
 
             <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800 space-y-1 text-xs text-gray-300">
@@ -1529,14 +1535,32 @@
                 </div>
 
                 <div class="flex items-center gap-2 pt-2">
-                    <button type="button" onclick="downloadModalTicketIcs()" class="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-700">
-                        <i class="fa-solid fa-calendar-plus text-amber-400"></i> Download .ics
+                    <button type="button" onclick="downloadModalTicketPdf()" class="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 text-red-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-700" title="Download PDF Badge">
+                        <i class="fa-solid fa-file-pdf"></i> PDF
+                    </button>
+                    <button type="button" onclick="downloadModalTicketIcs()" class="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 text-amber-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-700" title="Download .ics Calendar">
+                        <i class="fa-solid fa-calendar-plus"></i> .ics
                     </button>
                     <button type="submit" id="btn-dispatch-email" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30">
                         <i class="fa-solid fa-paper-plane"></i> Send Email
                     </button>
                 </div>
             </form>
+
+            <!-- Option 4: Instant Share (WhatsApp, System Share, Pass Download) -->
+            <div class="pt-3 border-t border-gray-800/80 space-y-2">
+                <div class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-share-nodes text-indigo-400"></i> Instant Share (No Email Required)
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button type="button" onclick="shareModalTicketWhatsApp()" class="py-2.5 px-3 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition-all">
+                        <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp Share
+                    </button>
+                    <button type="button" onclick="shareModalTicketNative()" class="py-2.5 px-3 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition-all">
+                        <i class="fa-solid fa-arrow-up-from-bracket"></i> System Share
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -5641,6 +5665,88 @@
         function downloadModalTicketIcs() {
             const token = document.getElementById('email-modal-token')?.value;
             if (token) downloadTicketIcs(token);
+        }
+
+        function downloadModalTicketPdf() {
+            const token = document.getElementById('email-modal-token')?.value;
+            if (token) downloadTicketPdf(token);
+        }
+
+        function buildTicketShareText(ticket, ev) {
+            const eventName = ev?.name || 'Event';
+            const eventDate = ev?.date ? `\n📅 Date: ${ev.date}` : '';
+            const eventLocation = ev?.location ? `\n📍 Venue: ${ev.location}` : '';
+            return `🎟️ *Admission Pass: ${eventName}*\n` +
+                   `👤 Attendee: ${ticket.attendeeName}\n` +
+                   `🏷️ Pass Tier: ${ticket.tier}` +
+                   eventDate +
+                   eventLocation +
+                   `\n🔑 Pass Token: ${ticket.token}\n\n` +
+                   `Present this pass code or token at the gate turnstile for admission.`;
+        }
+
+        function shareTicketViaWhatsApp(token) {
+            const ticket = ticketsState.find(t => t.token === token);
+            if (!ticket) {
+                notify("Ticket record not found.", "error");
+                return;
+            }
+            const ev = eventsState.find(e => e.id === ticket.eventId) || getActiveEvent();
+            const text = buildTicketShareText(ticket, ev);
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+            window.open(waUrl, '_blank', 'noopener,noreferrer');
+            notify("Opening WhatsApp share...", "ok", 2500);
+        }
+
+        async function shareTicketViaNative(token) {
+            const ticket = ticketsState.find(t => t.token === token);
+            if (!ticket) {
+                notify("Ticket record not found.", "error");
+                return;
+            }
+            const ev = eventsState.find(e => e.id === ticket.eventId) || getActiveEvent();
+            const text = buildTicketShareText(ticket, ev);
+            const title = `Admission Pass - ${ticket.attendeeName} (${ev?.name || 'Event'})`;
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: title,
+                        text: text,
+                    });
+                    notify("Shared successfully!", "ok");
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                    console.warn("Native share error, falling back to clipboard:", err);
+                }
+            }
+
+            // Fallback: Copy to clipboard
+            try {
+                await navigator.clipboard.writeText(text);
+                notify("Pass details copied to clipboard!", "ok", 3000);
+            } catch (clipErr) {
+                prompt("Copy pass details:", text);
+            }
+        }
+
+        function shareModalTicketWhatsApp() {
+            const token = document.getElementById('email-modal-token')?.value;
+            if (token) shareTicketViaWhatsApp(token);
+        }
+
+        function shareModalTicketNative() {
+            const token = document.getElementById('email-modal-token')?.value;
+            if (token) shareTicketViaNative(token);
+        }
+
+        function shareActiveModalWhatsApp() {
+            if (activeModalTicket?.token) shareTicketViaWhatsApp(activeModalTicket.token);
+        }
+
+        function shareActiveModalNative() {
+            if (activeModalTicket?.token) shareTicketViaNative(activeModalTicket.token);
         }
 
         function generateAppleWalletPassJson(ticket, event, signedPayload) {

@@ -26,8 +26,10 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+  const brevoSenderEmail = Deno.env.get("BREVO_SENDER_EMAIL") || "theultimate1.dev@gmail.com";
+  const brevoSenderName = Deno.env.get("BREVO_SENDER_NAME") || "IglooTickets";
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  // Resend default sandbox sender requires onboarding@resend.dev unless a custom domain is verified
   const emailFrom = Deno.env.get("EMAIL_FROM") || "IglooTickets <onboarding@resend.dev>";
 
   // 1. Authenticate caller
@@ -115,17 +117,17 @@ Deno.serve(async (req) => {
   const safeIcs = typeof icsContent === "string" && icsContent.startsWith("BEGIN:VCALENDAR") &&
     icsContent.length <= 10000 ? icsContent : null;
 
-  // If Resend API key is not configured, inform the user cleanly
-  if (!resendApiKey) {
+  // Check if at least one email provider is configured
+  if (!brevoApiKey && !resendApiKey) {
     return json({
       success: false,
       configured: false,
-      message: "RESEND_API_KEY secret is not set in Supabase. Run 'supabase secrets set RESEND_API_KEY=re_...' to enable direct email dispatch.",
+      message: "No email API key configured. Set BREVO_API_KEY in Supabase secrets to enable direct email dispatch.",
       previewHtml: generateTicketEmailHtml(displayAttendee, displayEvent, eventDate, eventLocation, displayTier, displayToken, qrData, logoUrl, brandColor)
     });
   }
 
-  // 3. Dispatch via Resend
+  // 3. Dispatch Email
   try {
     const emailHtml = generateTicketEmailHtml(displayAttendee, displayEvent, eventDate, eventLocation, displayTier, displayToken, qrData, logoUrl, brandColor);
     const attachments: Array<{ filename: string; content: string }> = [];
@@ -143,6 +145,56 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Provider A: Brevo (Recommended, works with personal verified email, no custom domain required)
+    if (brevoApiKey) {
+      const brevoPayload: any = {
+        sender: {
+          name: displayEvent ? `${displayEvent} via IglooTickets` : brevoSenderName,
+          email: brevoSenderEmail
+        },
+        to: [
+          {
+            email: recipientEmail.trim(),
+            name: displayAttendee
+          }
+        ],
+        subject: `Your Admission Pass: ${displayEvent} (${displayTier})`,
+        htmlContent: emailHtml
+      };
+
+      if (attachments.length > 0) {
+        brevoPayload.attachment = attachments.map(a => ({
+          name: a.filename,
+          content: a.content
+        }));
+      }
+
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": brevoApiKey,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(brevoPayload)
+      });
+
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const rawMsg = resData?.message || resData?.error || res.statusText || "Brevo dispatch error";
+        return fail(`Brevo API: ${rawMsg}`, 200, { details: resData });
+      }
+
+      return json({
+        success: true,
+        configured: true,
+        provider: "brevo",
+        messageId: resData?.messageId || "sent",
+        recipient: recipientEmail
+      });
+    }
+
+    // Provider B: Resend (Fallback)
     const resendPayload: any = {
       from: emailFrom,
       to: [recipientEmail.trim()],
@@ -163,7 +215,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify(resendPayload)
     });
 
-    const resData = await res.json();
+    const resData = await res.json().catch(() => ({}));
     if (!res.ok) {
       const rawMsg = resData?.message || resData?.error || res.statusText || "Resend error";
       let hint = "";

@@ -21,7 +21,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Google Fonts: Orbitron & Share Tech Mono (Vaporwave / Outrun Design System) -->
+    <!-- Google Fonts: Orbitron & Share Tech Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -32,9 +32,9 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- jsPDF for ticket generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- PapaParse for bulletproof CSV parsing -->
+    <!-- PapaParse CSV Parser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- Supabase JS Client (Free Tier Cloud Database & Realtime Sync) -->
+    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.42.0/dist/umd/supabase.min.js"></script>
 
     <!-- App Configuration & Initial Data Store -->
@@ -252,7 +252,7 @@
             color: #00FFFF;
         }
 
-        /* Viewfinder Laser Animation (Cyan & Magenta Outrun Laser) */
+        /* Viewfinder Laser Animation */
         @keyframes scan-laser {
             0% { top: 0%; opacity: 0.8; }
             50% { top: 96%; opacity: 1; }
@@ -268,7 +268,7 @@
             animation: scan-laser 2.2s infinite ease-in-out;
         }
 
-        /* Duplicate Alert Flash (Hot Magenta / Red Glitch) */
+        /* Duplicate Alert Flash */
         @keyframes pulse-danger {
             0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 255, 0.8); }
             50% { transform: scale(1.02); box-shadow: 0 0 30px 8px rgba(255, 0, 85, 0.7); }
@@ -438,26 +438,20 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between antialiased selection:bg-[#FF00FF] selection:text-white bg-[#090014] text-[#E0E0E0] relative">
-    <!-- Outrun Atmosphere Layers -->
-    <div class="crt-scanlines"></div>
+        <div class="crt-scanlines"></div>
     <div class="outrun-sun"></div>
     <div class="outrun-grid-floor"></div>
     <div class="relative z-10 flex flex-col min-h-screen justify-between">
 
-    <!-- ========================================================================= -->
-    <!-- AUTHENTICATION VIEW: DEDICATED FULL-SCREEN LAUNCH LOGIN PAGE -->
-    <!-- (Displayed when unauthenticated; dashboard is completely locked and hidden) -->
-    <!-- ========================================================================= -->
-    <div id="auth-view" class="min-h-screen w-full flex flex-col justify-between relative overflow-hidden bg-transparent text-[#E0E0E0] p-4 sm:p-6 md:p-8">
+        <!-- Authentication View -->
+        <div id="auth-view" class="min-h-screen w-full flex flex-col justify-between relative overflow-hidden bg-transparent text-[#E0E0E0] p-4 sm:p-6 md:p-8">
         
-        <!-- Ambient Glowing Background Accents -->
-        <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none"></div>
+                <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none"></div>
         <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-600/10 rounded-full blur-[140px] pointer-events-none"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-indigo-950/20 rounded-full blur-[160px] pointer-events-none"></div>
         <div class="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none"></div>
 
-        <!-- Top Header Bar on Login Page -->
-        <header class="w-full max-w-5xl mx-auto flex items-center justify-between py-2 relative z-10">
+                <header class="w-full max-w-5xl mx-auto flex items-center justify-between py-2 relative z-10">
             <div class="flex items-center space-x-3">
                 <img src="icon.svg" alt="IglooTickets Logo" class="w-8 h-8 rounded-xl shadow-md shadow-indigo-600/30 flex-shrink-0">
                 <div>
@@ -466,8 +460,7 @@
             </div>
         </header>
 
-        <!-- Main Auth Container -->
-        <main class="w-full max-w-md mx-auto my-auto py-8 relative z-10">
+                <main class="w-full max-w-md mx-auto my-auto py-8 relative z-10">
             <div class="outrun-window space-y-0">
                 <div class="window-titlebar">
                     <div class="window-dots">
@@ -480,8 +473,7 @@
                 </div>
                 <div class="p-6 sm:p-8 space-y-6">
                 
-                <!-- Brand Hero -->
-                <div class="text-center space-y-2">
+                                <div class="text-center space-y-2">
                     <div class="relative inline-block mb-1">
                         <img src="icon.svg" alt="IglooTickets" class="w-14 h-14 mx-auto border-2 border-[#00FFFF] shadow-[0_0_20px_#00FFFF]">
                         <span class="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
@@ -493,8 +485,7 @@
                     <p class="font-mono text-xs text-[#00FFFF] tracking-widest uppercase">&gt; NEON ACCESS GATEWAY &amp; VERIFIER</p>
                 </div>
 
-                <!-- Tab Switcher: Staff Credentials vs Gate Terminal PIN -->
-                <div class="flex gap-2">
+                                <div class="flex gap-2">
                     <button type="button" onclick="setAuthTab('staff')" id="auth-tab-staff" class="btn-outrun-primary flex-1 py-2.5 flex items-center justify-center gap-2">
                         <span><i class="fa-solid fa-user-shield mr-1"></i> STAFF LOGIN</span>
                     </button>
@@ -503,8 +494,7 @@
                     </button>
                 </div>
 
-                <!-- Form A: Staff Login (Username & Password) -->
-                <form id="staff-login-form" onsubmit="handleStaffLogin(event)" class="space-y-4">
+                                <form id="staff-login-form" onsubmit="handleStaffLogin(event)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Username or Email</label>
                         <div class="relative">
@@ -542,8 +532,7 @@
                     </button>
                 </form>
 
-                <!-- Form B: Mobile Gate PIN Login (Event Code + 4-digit PIN) -->
-                <form id="pin-login-form" onsubmit="handlePinLogin(event)" class="space-y-4 hidden">
+                                <form id="pin-login-form" onsubmit="handlePinLogin(event)" class="space-y-4 hidden">
                     <div>
                         <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Event Code</label>
                         <div class="relative">
@@ -571,14 +560,11 @@
                     </button>
                 </form>
 
-
-
                 </div>
             </div>
         </main>
 
-        <!-- Footer on Login Page -->
-        <footer class="w-full max-w-5xl mx-auto py-3 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500 relative z-10 border-t border-gray-800/40">
+                <footer class="w-full max-w-5xl mx-auto py-3 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500 relative z-10 border-t border-gray-800/40">
             <div class="flex items-center gap-3 text-[11px]">
                 <span class="flex items-center gap-1 text-gray-400">
                     <i class="fa-solid fa-shield text-indigo-400"></i> Secure Access
@@ -591,20 +577,15 @@
 
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- MAIN APPLICATION DASHBOARD (Unlocked only after successful authentication) -->
-    <!-- ========================================================================= -->
-    <div id="app-dashboard" class="min-h-screen flex flex-col justify-between hidden">
+        <!-- Main Application Dashboard -->
+        <div id="app-dashboard" class="min-h-screen flex flex-col justify-between hidden">
 
-        <!-- ========================================================================= -->
-        <!-- TOP NAVIGATION BAR -->
-        <!-- ========================================================================= -->
-        <header class="glass-panel sticky top-0 z-40 border-b border-gray-800/80">
+                <!-- Top Navigation Bar -->
+                <header class="glass-panel sticky top-0 z-40 border-b border-gray-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16 gap-2">
                 
-                <!-- Left: Brand & Active Event Selector -->
-                <div class="flex items-center space-x-3 sm:space-x-4 min-w-0">
+                                <div class="flex items-center space-x-3 sm:space-x-4 min-w-0">
                     <img src="icon.svg" alt="IglooTickets Logo" class="w-9 h-9 rounded-xl shadow-md shadow-indigo-600/20 flex-shrink-0">
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
@@ -615,21 +596,14 @@
                         <div id="event-switcher-container" class="flex items-center gap-1.5 mt-0.5 px-2 py-0.5 bg-black/60 border border-[#FF00FF]/40 text-xs">
                             <i class="fa-solid fa-calendar-days text-[11px] text-[#00FFFF]"></i>
                             <select id="active-event-select" onchange="handleEventSwitch(this.value)" class="bg-transparent text-[#00FFFF] font-mono border-0 focus:ring-0 p-0 text-xs cursor-pointer max-w-[180px] sm:max-w-xs truncate">
-                                <!-- Populated dynamically -->
-                            </select>
+                                                            </select>
                         </div>
                     </div>
                 </div>
 
-                <!-- Right: Navigation Links, Active Role Badge & Profile -->
-                <div class="flex items-center space-x-2 sm:space-x-3">
-                    <!-- Dynamic Nav Tabs (hidden on small mobile, handled via bottom/drawer) -->
-                    <nav id="main-nav-tabs" class="hidden md:flex items-center space-x-1">
-                        <!-- Populated by renderNavigation() based on logged in role -->
-                    </nav>
-
-
-
+                                <div class="flex items-center space-x-2 sm:space-x-3">
+                                        <nav id="main-nav-tabs" class="hidden md:flex items-center space-x-1">
+                                            </nav>
 
                     <!-- Active User / Role Badge -->
                     <div id="user-profile-badge" class="flex items-center space-x-2 bg-[#1a103c]/90 border border-[#00FFFF]/40 px-3 py-1.5 hover:border-[#00FFFF] hover:shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all">
@@ -656,21 +630,15 @@
 
         <!-- Mobile Navigation Strip (Visible on small screens) -->
         <div id="mobile-nav-strip" class="md:hidden flex items-center justify-around px-2 py-1.5 border-t border-gray-800/80 bg-gray-950/80 text-xs overflow-x-auto">
-            <!-- Populated dynamically -->
-        </div>
+                    </div>
     </header>
 
-    <!-- ========================================================================= -->
-    <!-- MAIN CONTENT CONTAINER -->
-    <!-- ========================================================================= -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+        <!-- Main Content Container -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
 
-        <!-- ===================================================================== -->
-        <!-- VIEW 1: GATEWAY SCANNER (TICKET_SCANNER, EVENT_ADMIN, MASTER_ADMIN) -->
-        <!-- ===================================================================== -->
-        <section id="view-scanner" class="tab-view space-y-6 hidden">
-            <!-- Top Controls: Station Gate Selector, Mode Toggle & Sync Status -->
-            <div class="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                <!-- Scanner View -->
+                <section id="view-scanner" class="tab-view space-y-6 hidden">
+                        <div class="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center space-x-3">
                     <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
                         <i class="fa-solid fa-qrcode text-lg"></i>
@@ -684,8 +652,7 @@
                     </div>
                 </div>
 
-                <!-- Center: Entrance vs Exit (Pass-Out) Mode Switch -->
-                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2">
                     <button id="scan-mode-entrance-btn" onclick="setScanMode('ENTRANCE')" class="px-3.5 py-1.5 text-xs font-mono font-bold uppercase -skew-x-6 border-2 border-[#00FF88] bg-[#00FF88]/20 text-[#00FF88] shadow-[0_0_12px_#00FF88] transition-all flex items-center gap-1.5">
                         <span class="skew-x-6 flex items-center gap-1.5"><i class="fa-solid fa-arrow-right-to-bracket text-xs"></i> ENTRANCE</span>
                     </button>
@@ -715,11 +682,9 @@
                 </div>
             </div>
 
-
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                <!-- Left Column: Camera Viewfinder & Media Controls -->
-                <div class="lg:col-span-7 space-y-4">
+                                <div class="lg:col-span-7 space-y-4">
                     <div class="glass-panel p-5 rounded-2xl relative overflow-hidden">
                         
                         <div class="flex justify-between items-center mb-3">
@@ -732,13 +697,11 @@
                             </div>
                         </div>
 
-                        <!-- Video Scanner Feed Box -->
-                        <div class="relative aspect-video sm:aspect-[4/3] bg-black/90 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center">
+                                                <div class="relative aspect-video sm:aspect-[4/3] bg-black/90 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center">
                             <video id="webcam-video" class="w-full h-full object-cover hidden" playsinline></video>
                             <canvas id="qr-canvas" class="hidden"></canvas>
                             
-                            <!-- Scanner Overlay Graphics -->
-                            <div id="viewfinder-overlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                                        <div id="viewfinder-overlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 <div id="scan-frame" class="w-52 h-52 sm:w-64 sm:h-64 border-2 border-[#00FFFF] shadow-[0_0_25px_rgba(0,255,255,0.4)] relative transition-all">
                                     <div class="hud-corner-tl"></div>
                                     <div class="hud-corner-tr"></div>
@@ -751,8 +714,7 @@
                                 </p>
                             </div>
 
-                            <!-- Start Camera Overlay (When Camera Inactive) -->
-                            <div id="camera-start-overlay" class="absolute inset-0 bg-gray-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                                                        <div id="camera-start-overlay" class="absolute inset-0 bg-gray-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4">
                                 <div class="p-4 bg-indigo-600/10 rounded-full border border-indigo-500/20 text-indigo-400">
                                     <i class="fa-solid fa-camera-viewfinder text-3xl"></i>
                                 </div>
@@ -768,8 +730,7 @@
                             </div>
                         </div>
 
-                        <!-- Scanner Bottom Controls Toolbar -->
-                        <div class="mt-4 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-800/80">
+                                                <div class="mt-4 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-800/80">
                             <div class="flex items-center space-x-2">
                                 <button id="stop-cam-btn" onclick="stopCamera()" class="hidden px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-medium transition-all">
                                     <i class="fa-solid fa-stop mr-1"></i> Stop Camera
@@ -787,8 +748,7 @@
                                 </label>
                             </div>
 
-                            <!-- Manual Token Input Fallback -->
-                            <div class="flex items-center space-x-1.5">
+                                                        <div class="flex items-center space-x-1.5">
                                 <input type="text" id="manual-token-input" placeholder="Manual Token UUID..." class="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 w-36 sm:w-44 font-mono">
                                 <button onclick="handleManualTokenSubmit()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold">Verify</button>
                             </div>
@@ -796,24 +756,20 @@
 
                     </div>
 
-
                 </div>
 
-                <!-- Right Column: Verification Result Card -->
-                <div class="lg:col-span-5 space-y-4">
+                                <div class="lg:col-span-5 space-y-4">
                     <div id="result-card" class="glass-panel p-6 rounded-2xl flex flex-col justify-between h-full min-h-[460px] transition-all border-2 border-gray-800">
                         
                         <div>
-                            <!-- Header Status Badge -->
-                            <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+                                                        <div class="flex items-center justify-between pb-4 border-b border-gray-800">
                                 <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Gate Verification</span>
                                 <span id="status-badge" class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-800 text-gray-400 border border-gray-700">
                                     Awaiting Scan
                                 </span>
                             </div>
 
-                            <!-- Dynamic Visual Feedback -->
-                            <div id="result-body" class="py-10 flex flex-col items-center justify-center text-center space-y-4">
+                                                        <div id="result-body" class="py-10 flex flex-col items-center justify-center text-center space-y-4">
                                 <div id="result-icon-bg" class="w-24 h-24 rounded-full bg-gray-800/80 border border-gray-700 flex items-center justify-center text-gray-500 transition-all">
                                     <i id="result-icon" class="fa-solid fa-qrcode text-4xl"></i>
                                 </div>
@@ -825,8 +781,7 @@
                                 </div>
                             </div>
 
-                            <!-- Detailed Result Info Box -->
-                            <div id="result-details" class="hidden glass-card p-4 rounded-xl space-y-2.5 text-xs">
+                                                        <div id="result-details" class="hidden glass-card p-4 rounded-xl space-y-2.5 text-xs">
                                 <div class="flex justify-between items-center text-gray-400 pb-2 border-b border-gray-800">
                                     <span>Attendee Name:</span>
                                     <span id="detail-name" class="font-bold text-white text-sm">--</span>
@@ -856,8 +811,7 @@
                             </div>
                         </div>
 
-                        <!-- Footer Anti-Duplicate Notice -->
-                        <div class="pt-4 border-t border-gray-800 text-center">
+                                                <div class="pt-4 border-t border-gray-800 text-center">
                             <p class="text-[11px] text-gray-500 flex items-center justify-center gap-1.5">
                                 <i class="fa-solid fa-shield-cat text-emerald-400"></i>
                                 Single-use validation active. Duplicate scans are rejected automatically.
@@ -870,10 +824,8 @@
             </div>
         </section>
 
-        <!-- ===================================================================== -->
-        <!-- VIEW 2: TICKET REGISTRY (TICKETING_AGENT, EVENT_ADMIN, MASTER_ADMIN) -->
-        <!-- ===================================================================== -->
-        <section id="view-tickets" class="tab-view space-y-6 hidden">
+                <!-- Ticket Registry View -->
+                <section id="view-tickets" class="tab-view space-y-6 hidden">
             <div class="glass-panel p-6 rounded-2xl space-y-4">
                 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -897,8 +849,7 @@
                     </div>
                 </div>
 
-                <!-- Filters & Search Toolbar -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div class="sm:col-span-2 relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-500 text-xs"></i>
                         <input type="text" id="registry-search" oninput="renderRegistryTable()" placeholder="Search attendee name, email, or token..." class="w-full pl-9 pr-4 py-2 bg-gray-900/80 border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500">
@@ -906,13 +857,11 @@
                     <div>
                         <select id="registry-tier-filter" onchange="renderRegistryTable()" class="w-full py-2 px-3 bg-gray-900/80 border border-gray-700 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500">
                             <option value="ALL">All Tiers</option>
-                            <!-- Dynamically populated from event tiers -->
-                        </select>
+                                                    </select>
                     </div>
                 </div>
 
-                <!-- Registry Table -->
-                <div class="overflow-x-auto">
+                                <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-gray-900/90 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800">
                             <tr>
@@ -925,26 +874,21 @@
                             </tr>
                         </thead>
                         <tbody id="registry-tbody" class="divide-y divide-gray-800/60 text-gray-300">
-                            <!-- Populated dynamically -->
-                        </tbody>
+                                                    </tbody>
                     </table>
                 </div>
 
             </div>
         </section>
 
-        <!-- ===================================================================== -->
-        <!-- VIEW 3: ISSUE PASSES (SINGLE & BULK CSV) -->
-        <!-- ===================================================================== -->
-        <section id="view-issue-tickets" class="tab-view space-y-6 hidden">
+                <!-- Pass Issuance View -->
+                <section id="view-issue-tickets" class="tab-view space-y-6 hidden">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                <!-- Left: Issuance Forms (Single vs CSV Tabs) -->
-                <div class="lg:col-span-6 space-y-5">
+                                <div class="lg:col-span-6 space-y-5">
                     <div class="glass-panel p-6 rounded-2xl space-y-5">
                         
-                        <!-- Toggle: Single Pass vs Bulk CSV -->
-                        <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+                                                <div class="flex items-center justify-between pb-3 border-b border-gray-800">
                             <div>
                                 <h3 class="text-base font-bold text-white flex items-center gap-2">
                                     <i class="fa-solid fa-id-card-clip text-indigo-400"></i> Generate Passes
@@ -957,8 +901,7 @@
                             </div>
                         </div>
 
-                        <!-- Single Pass Form -->
-                        <form id="single-pass-form" onsubmit="handleSinglePassSubmit(event)" class="space-y-4">
+                                                <form id="single-pass-form" onsubmit="handleSinglePassSubmit(event)" class="space-y-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
                                     Attendee Full Name *
@@ -978,8 +921,7 @@
                                     Ticket Tier / Access Level *
                                 </label>
                                 <select id="pass-tier-select" class="w-full px-3.5 py-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500">
-                                    <!-- Populated dynamically from event tiers -->
-                                </select>
+                                                                    </select>
                             </div>
 
                             <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-2">
@@ -987,8 +929,7 @@
                             </button>
                         </form>
 
-                        <!-- Bulk CSV Upload Form -->
-                        <div id="bulk-pass-form" class="space-y-4 hidden">
+                                                <div id="bulk-pass-form" class="space-y-4 hidden">
                             <div class="p-3 bg-gray-900/80 rounded-xl border border-dashed border-gray-700 text-center space-y-2">
                                 <i class="fa-solid fa-file-csv text-3xl text-indigo-400"></i>
                                 <div>
@@ -1009,8 +950,7 @@
                                 <i class="fa-solid fa-table-list"></i> Parse & Preview Attendees
                             </button>
 
-                            <!-- CSV Preview Table -->
-                            <div id="csv-preview-container" class="space-y-2 hidden">
+                                                        <div id="csv-preview-container" class="space-y-2 hidden">
                                 <div class="flex items-center justify-between text-xs">
                                     <span id="csv-preview-count" class="font-bold text-emerald-400">0 Attendees Parsed</span>
                                     <button onclick="commitBulkImport()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1 shadow-md shadow-emerald-600/30">
@@ -1035,8 +975,7 @@
                     </div>
                 </div>
 
-                <!-- Right: Ticket Preview Box -->
-                <div class="lg:col-span-6 space-y-4">
+                                <div class="lg:col-span-6 space-y-4">
                     <div id="ticket-live-preview-box" class="glass-panel p-6 rounded-2xl hidden">
                         <div class="flex justify-between items-center mb-4">
                             <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -1052,8 +991,7 @@
                             </div>
                         </div>
 
-                        <!-- Ticket Graphic Card -->
-                        <div class="bg-gradient-to-br from-indigo-950/80 via-gray-900 to-black p-6 rounded-2xl border border-indigo-500/40 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
+                                                <div class="bg-gradient-to-br from-indigo-950/80 via-gray-900 to-black p-6 rounded-2xl border border-indigo-500/40 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
                             <div class="space-y-3 text-center sm:text-left z-10">
                                 <span id="preview-card-tier" class="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-[11px] font-semibold">
                                     VIP Access
@@ -1073,8 +1011,7 @@
                         </div>
                     </div>
 
-                    <!-- Guidelines Card -->
-                    <div class="glass-panel p-5 rounded-2xl space-y-3">
+                                        <div class="glass-panel p-5 rounded-2xl space-y-3">
                         <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                             <i class="fa-solid fa-circle-info text-indigo-400"></i> Ticket Guidelines & Policies
                         </h4>
@@ -1090,10 +1027,8 @@
             </div>
         </section>
 
-        <!-- ===================================================================== -->
-        <!-- VIEW 4: STAFF & USER MANAGEMENT (EVENT_ADMIN & MASTER_ADMIN) -->
-        <!-- ===================================================================== -->
-        <section id="view-users" class="tab-view space-y-6 hidden">
+                <!-- Staff Management View -->
+                <section id="view-users" class="tab-view space-y-6 hidden">
             <div class="glass-panel p-6 rounded-2xl space-y-4">
                 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1110,8 +1045,7 @@
                     </button>
                 </div>
 
-                <!-- Users Directory Table -->
-                <div class="overflow-x-auto">
+                                <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-gray-900/90 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800">
                             <tr>
@@ -1124,18 +1058,15 @@
                             </tr>
                         </thead>
                         <tbody id="users-tbody" class="divide-y divide-gray-800/60 text-gray-300">
-                            <!-- Populated dynamically -->
-                        </tbody>
+                                                    </tbody>
                     </table>
                 </div>
 
             </div>
         </section>
 
-        <!-- ===================================================================== -->
-        <!-- VIEW 5: EVENTS MANAGER (MASTER_ADMIN EXCLUSIVE) -->
-        <!-- ===================================================================== -->
-        <section id="view-events-manager" class="tab-view space-y-6 hidden">
+                <!-- Events Manager View -->
+                <section id="view-events-manager" class="tab-view space-y-6 hidden">
             <div class="glass-panel p-6 rounded-2xl space-y-4">
                 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1151,20 +1082,15 @@
                     </button>
                 </div>
 
-                <!-- Events Grid Cards -->
-                <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Populated dynamically -->
-                </div>
+                                <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    </div>
 
             </div>
         </section>
 
-        <!-- ===================================================================== -->
-        <!-- VIEW 6: ANALYTICS & AUDIT LOGS -->
-        <!-- ===================================================================== -->
-        <section id="view-analytics" class="tab-view space-y-6 hidden">
-            <!-- Stats Metric Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Analytics & Audit Logs View -->
+                <section id="view-analytics" class="tab-view space-y-6 hidden">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="glass-panel p-5 rounded-2xl flex items-center justify-between">
                     <div>
                         <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Total Passes Issued</p>
@@ -1206,10 +1132,9 @@
                 </div>
             </div>
 
-            <!-- Turnstile Velocity & Gate Flow Analytics (Phase 3) -->
+            <!-- Turnstile Velocity & Gate Flow Analytics -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <!-- Left: Flow Velocity & Key Latency Metrics (4 cols) -->
-                <div class="lg:col-span-4 glass-panel p-5 rounded-2xl space-y-4">
+                                <div class="lg:col-span-4 glass-panel p-5 rounded-2xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                         <div class="flex items-center gap-2">
                             <span class="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/20">
@@ -1253,8 +1178,7 @@
                         </div>
                     </div>
 
-                    <!-- Flow Recommendation / Bottleneck Alert -->
-                    <div id="velocity-bottleneck-card" class="p-3 bg-gray-900/60 rounded-xl border border-gray-800/80 text-xs flex items-start gap-2.5">
+                                        <div id="velocity-bottleneck-card" class="p-3 bg-gray-900/60 rounded-xl border border-gray-800/80 text-xs flex items-start gap-2.5">
                         <i id="velocity-bottleneck-icon" class="fa-solid fa-circle-info text-indigo-400 mt-0.5 flex-shrink-0"></i>
                         <p id="velocity-bottleneck-text" class="text-gray-300 leading-relaxed text-[11px]">
                             Turnstile flow is well-balanced across operational stations. No queue bottlenecks detected.
@@ -1262,8 +1186,7 @@
                     </div>
                 </div>
 
-                <!-- Center: Station Throughput Distribution & Load (4 cols) -->
-                <div class="lg:col-span-4 glass-panel p-5 rounded-2xl space-y-4">
+                                <div class="lg:col-span-4 glass-panel p-5 rounded-2xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                         <div class="flex items-center gap-2">
                             <span class="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
@@ -1275,12 +1198,10 @@
                     </div>
 
                     <div id="gate-distribution-list" class="space-y-3">
-                        <!-- Populated dynamically per gate station -->
-                    </div>
+                                            </div>
                 </div>
 
-                <!-- Right: Ingress Hourly Admission Curve (4 cols) -->
-                <div class="lg:col-span-4 glass-panel p-5 rounded-2xl space-y-4">
+                                <div class="lg:col-span-4 glass-panel p-5 rounded-2xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                         <div class="flex items-center gap-2">
                             <span class="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/20">
@@ -1292,13 +1213,11 @@
                     </div>
 
                     <div id="hourly-curve-container" class="h-44 flex items-end justify-between gap-1 pt-4 pb-2 px-1">
-                        <!-- Populated dynamically with histogram bars -->
-                    </div>
+                                            </div>
                 </div>
             </div>
 
-            <!-- Audit Log Table -->
-            <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <div class="glass-panel p-6 rounded-2xl space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -1330,8 +1249,7 @@
                             </tr>
                         </thead>
                         <tbody id="audit-tbody" class="divide-y divide-gray-800/60 text-gray-300">
-                            <!-- Populated dynamically -->
-                        </tbody>
+                                                    </tbody>
                     </table>
                 </div>
             </div>
@@ -1339,26 +1257,19 @@
 
     </main>
 
-    <!-- ========================================================================= -->
-    <!-- FOOTER -->
-    <!-- ========================================================================= -->
-    <footer class="glass-panel border-t border-gray-800/80 py-4 mt-auto">
+        <!-- FOOTER -->
+        <footer class="glass-panel border-t border-gray-800/80 py-4 mt-auto">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
             <span>IglooTickets &copy; 2026</span>
             <span>Events E-Ticketing Manager</span>
         </div>
     </footer>
-    </div><!-- End of #app-dashboard -->
+    </div>
 
-    <!-- Toast Notification Banner -->
-    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] hidden max-w-sm w-[90%] px-4 py-2.5 rounded-xl text-xs text-center border backdrop-blur-md shadow-2xl transition-all"></div>
+        <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] hidden max-w-sm w-[90%] px-4 py-2.5 rounded-xl text-xs text-center border backdrop-blur-md shadow-2xl transition-all"></div>
 
-
-
-    <!-- ========================================================================= -->
-    <!-- MODAL 3: CREATE / EDIT USER MODAL -->
-    <!-- ========================================================================= -->
-    <div id="user-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- User Modal -->
+        <div id="user-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
         <div class="outrun-window space-y-0 relative shadow-2xl p-0">
             <div class="window-titlebar">
                 <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
@@ -1413,10 +1324,8 @@
         </div>
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- MODAL 4: RESET USER PASSWORD MODAL -->
-    <!-- ========================================================================= -->
-    <div id="reset-pwd-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- Reset Password Modal -->
+        <div id="reset-pwd-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
         <div class="outrun-window-magenta space-y-0 relative shadow-2xl p-0">
             <div class="window-titlebar-magenta">
                 <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
@@ -1447,10 +1356,8 @@
         </div>
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- MODAL 4B: MY PROFILE & SECURITY (SELF-SERVICE PROFILE EDIT & PASSWORD RESET) -->
-    <!-- ========================================================================= -->
-    <div id="profile-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- Profile & Security Modal -->
+        <div id="profile-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
         <div class="outrun-window space-y-0 relative shadow-2xl p-0">
             <div class="window-titlebar">
                 <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
@@ -1462,8 +1369,7 @@
                 <i class="fa-solid fa-times text-base"></i>
             </button>
 
-            <!-- Header with user avatar and role badge -->
-            <div class="flex items-center space-x-3 pb-3 border-b border-gray-800">
+                        <div class="flex items-center space-x-3 pb-3 border-b border-gray-800">
                 <div class="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl font-bold" id="my-profile-avatar-icon">
                     <i class="fa-solid fa-user-shield"></i>
                 </div>
@@ -1478,8 +1384,7 @@
                 </div>
             </div>
 
-            <!-- Profile Tabs: Details vs Change Password -->
-            <div class="flex p-1 bg-gray-900 rounded-xl border border-gray-800 text-xs">
+                        <div class="flex p-1 bg-gray-900 rounded-xl border border-gray-800 text-xs">
                 <button type="button" onclick="setProfileTab('details')" id="profile-tab-details" class="flex-1 py-1.5 font-semibold rounded-lg bg-indigo-600 text-white">
                     <i class="fa-solid fa-id-card mr-1"></i> Profile Details
                 </button>
@@ -1488,8 +1393,7 @@
                 </button>
             </div>
 
-            <!-- Tab A: Profile Details -->
-            <form id="my-profile-form" onsubmit="handleSaveMyProfile(event)" class="space-y-3">
+                        <form id="my-profile-form" onsubmit="handleSaveMyProfile(event)" class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Username (Account Identifier)</label>
                     <input type="text" id="my-profile-username" disabled class="w-full px-3 py-2 bg-gray-950 border border-gray-800 rounded-xl text-gray-400 text-xs font-mono cursor-not-allowed">
@@ -1513,8 +1417,7 @@
                 </button>
             </form>
 
-            <!-- Tab B: Change Password -->
-            <form id="my-password-form" onsubmit="handleUpdateMyPassword(event)" class="space-y-3 hidden">
+                        <form id="my-password-form" onsubmit="handleUpdateMyPassword(event)" class="space-y-3 hidden">
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Current Password *</label>
                     <input type="password" id="my-profile-curr-pwd" required placeholder="Enter current password" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
@@ -1541,10 +1444,8 @@
         </div>
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- MODAL 4C: EDIT STAFF PROFILE (ADMINISTRATIVE) -->
-    <!-- ========================================================================= -->
-    <div id="edit-staff-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- Edit Staff Profile Modal -->
+        <div id="edit-staff-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
         <div class="outrun-window space-y-0 relative shadow-2xl p-0">
             <div class="window-titlebar">
                 <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
@@ -1592,8 +1493,7 @@
                 <div id="edit-staff-events-group">
                     <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Assigned Events</label>
                     <div id="edit-staff-assigned-events-container" class="space-y-1 bg-gray-950 p-2 rounded-xl border border-gray-800 max-h-32 overflow-y-auto">
-                        <!-- Checkboxes populated dynamically -->
-                    </div>
+                                            </div>
                 </div>
 
                 <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 mt-2">
@@ -1604,10 +1504,8 @@
         </div>
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- MODAL 5: CREATE / EDIT EVENT MODAL (MASTER_ADMIN) -->
-    <!-- ========================================================================= -->
-    <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- Event Modal -->
+        <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
         <div class="outrun-window space-y-0 relative shadow-2xl p-0">
             <div class="window-titlebar">
                 <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
@@ -1668,7 +1566,7 @@
                     <input type="text" id="event-stations-input" placeholder="Gate 1 (Main Entrance), Gate 2 (VIP), East Turnstile" value="Gate 1 (Main Entrance), Gate 2 (VIP / Media), North Turnstile, South Turnstile" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-indigo-500">
                 </div>
 
-                <!-- Station Tier Permissions (Phase 3) -->
+                <!-- Station Tier Permissions -->
                 <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800 space-y-1.5">
                     <div class="flex items-center justify-between">
                         <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
@@ -1682,8 +1580,7 @@
                     <textarea id="event-restrictions-input" rows="2" placeholder="e.g. Gate 2 (VIP / Media): VIP Platinum, Speaker / VIP" class="w-full px-3 py-2 bg-gray-950 border border-gray-700 rounded-xl text-white text-xs font-mono placeholder-gray-600 focus:outline-none focus:border-indigo-500"></textarea>
                 </div>
 
-                <!-- Organizer Branding & Theme -->
-                <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800 space-y-2">
+                                <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800 space-y-2">
                     <div class="flex items-center justify-between">
                         <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
                             <i class="fa-solid fa-palette text-indigo-400 mr-1"></i> Organizer Branding & Theme
@@ -1704,8 +1601,7 @@
                         <div class="flex items-center gap-2">
                             <input type="color" id="event-brand-color-picker" value="#0284c7" onchange="syncEventBrandColor(this.value)" class="w-8 h-8 rounded-lg bg-transparent border-0 cursor-pointer p-0">
                             <input type="text" id="event-brand-color-input" value="#0284c7" maxlength="7" placeholder="#0284c7" oninput="syncEventBrandPicker(this.value)" class="w-24 px-2 py-1.5 bg-gray-950 border border-gray-700 rounded-xl text-white text-xs font-mono uppercase focus:outline-none focus:border-indigo-500">
-                            <!-- Preset Swatches -->
-                            <div class="flex gap-1.5 ml-auto">
+                                                        <div class="flex gap-1.5 ml-auto">
                                 <button type="button" onclick="setEventBrandPreset('#0284c7')" title="Sky" class="w-5 h-5 rounded-full bg-[#0284c7] hover:scale-110 transition-transform border border-white/20"></button>
                                 <button type="button" onclick="setEventBrandPreset('#4f46e5')" title="Indigo" class="w-5 h-5 rounded-full bg-[#4f46e5] hover:scale-110 transition-transform border border-white/20"></button>
                                 <button type="button" onclick="setEventBrandPreset('#059669')" title="Emerald" class="w-5 h-5 rounded-full bg-[#059669] hover:scale-110 transition-transform border border-white/20"></button>
@@ -1729,10 +1625,8 @@
         </div>
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- MODAL 5B: 1-CLICK CLONE EVENT MODAL (MASTER_ADMIN) -->
-    <!-- ========================================================================= -->
-    <div id="clone-event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- Clone Event Modal -->
+        <div id="clone-event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
         <div class="outrun-window-magenta space-y-0 relative shadow-2xl p-0">
             <div class="window-titlebar-magenta">
                 <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
@@ -1802,10 +1696,8 @@
         </div>
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- MODAL 6: QR INSPECT POPUP -->
-    <!-- ========================================================================= -->
-    <div id="qr-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- QR Inspect Modal -->
+        <div id="qr-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
         <div class="outrun-window space-y-0 relative shadow-2xl p-0">
             <div class="window-titlebar">
                 <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
@@ -1860,10 +1752,8 @@
         </div>
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- MODAL 7: EMAIL TICKET PASS MODAL (Phase 3) -->
-    <!-- ========================================================================= -->
-    <div id="email-ticket-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- Email Ticket Modal -->
+        <div id="email-ticket-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
         <div class="outrun-window-magenta space-y-0 relative shadow-2xl p-0">
             <div class="window-titlebar-magenta">
                 <div class="window-dots"><span class="window-dot dot-magenta"></span><span class="window-dot dot-cyan"></span><span class="window-dot dot-orange"></span></div>
@@ -1921,8 +1811,7 @@
                 </div>
             </form>
 
-            <!-- Option 4: Instant Share (WhatsApp, System Share, Pass Download) -->
-            <div class="pt-3 border-t border-gray-800/80 space-y-2">
+                        <div class="pt-3 border-t border-gray-800/80 space-y-2">
                 <div class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                     <i class="fa-solid fa-share-nodes text-indigo-400"></i> Instant Share (No Email Required)
                 </div>
@@ -1939,15 +1828,10 @@
     </div>
         </div>
     </div>
-    <!-- end outrun-content-wrapper -->
-
-    <!-- ========================================================================= -->
-    <!-- CORE SCRIPT & APPLICATION LOGIC -->
-    <!-- ========================================================================= -->
-    <script>
-        /* =========================================================================
-           1. STATE MANAGEMENT & SUPABASE CLIENT INITIALIZATION
-           ========================================================================= */
+    
+        <!-- CORE SCRIPT & APPLICATION LOGIC -->
+        <script>
+        /* 1. STATE MANAGEMENT & SUPABASE CLIENT INITIALIZATION */
         
         let supabaseClient = null;
         let isSupabaseConnected = false;
@@ -2013,9 +1897,7 @@
         let activeModalTicket = null;
         let activePreviewTicket = null;
 
-        /* =========================================================================
-           2. INITIALIZATION ON LOAD
-           ========================================================================= */
+        /* 2. INITIALIZATION ON LOAD */
         window.addEventListener('DOMContentLoaded', async () => {
             initPWA();
             initStorageAndData();
@@ -2345,8 +2227,7 @@
         }
 
         function setConnectionBadge(isLive) {
-            // Badges removed for clean production UI
-        }
+                    }
 
         function mapDbUser(u) {
             return {
@@ -2601,9 +2482,7 @@
             };
         }
 
-        /* =========================================================================
-           4. SESSION, AUTHENTICATION & ROLE MANAGEMENT
-           ========================================================================= */
+        /* 4. SESSION, AUTHENTICATION & ROLE MANAGEMENT */
         async function fetchAllRows(table, orderCol) {
             const pageSize = 1000;
             let from = 0;
@@ -2707,7 +2586,7 @@
                 ];
             }
 
-            // Desktop tabs (Vaporwave / Outrun Skewed Tabs)
+            // Desktop navigation tabs
             navTabs.innerHTML = '';
             tabs.forEach((t, i) => {
                 const btn = document.createElement('button');
@@ -2773,7 +2652,7 @@
             const targetView = document.getElementById(`view-${viewId}`);
             if (targetView) targetView.classList.remove('hidden');
 
-            // Update desktop active styles (Outrun Neon Cyan Active)
+            // Update desktop active styles
             document.querySelectorAll('#main-nav-tabs button').forEach(btn => {
                 btn.className = "px-3.5 py-1.5 text-xs font-mono font-medium uppercase tracking-wider text-[#E0E0E0]/70 hover:text-[#00FFFF] hover:bg-[#1a103c] border border-transparent transition-all flex items-center space-x-1.5 -skew-x-6";
             });
@@ -2820,9 +2699,7 @@
             updateStats();
         }
 
-        /* =========================================================================
-           5. EVENT SWITCHER & MULTI-EVENT SCOPE
-           ========================================================================= */
+        /* 5. EVENT SWITCHER & MULTI-EVENT SCOPE */
         const EMPTY_EVENT = Object.freeze({
             id: null, name: 'No event yet', code: 'NONE', date: '', location: '', gatePin: '',
             tiers: [], stations: ['Gate 1 (Main Entrance)'], capacity: 0, status: 'ACTIVE'
@@ -2930,16 +2807,13 @@
             }
         }
 
-        /* =========================================================================
-           6. LOGIN & ROLE SWITCHING ACTIONS
-           ========================================================================= */
+        /* 6. LOGIN & ROLE SWITCHING ACTIONS */
         function openLoginModal() {
             handleSignOut();
         }
 
         function closeLoginModal() {
-            // Deprecated: Auth view is now a dedicated full screen page
-        }
+                    }
 
         async function handleSignOut() {
             try {
@@ -3199,9 +3073,7 @@
             }
         }
 
-        /* =========================================================================
-           7. GATEWAY SCANNER & CAMERA QR DECODING ENGINE
-           ========================================================================= */
+        /* 7. GATEWAY SCANNER & CAMERA QR DECODING ENGINE */
         function changeGateStation(newStation) {
             document.getElementById('scanner-gate-badge').textContent = newStation;
             notify(`Station set to: ${newStation}`, 'ok', 2000);
@@ -3478,9 +3350,7 @@
             return null;
         }
 
-        /* =========================================================================
-           8. CORE VERIFICATION, PASS-OUT & RE-ENTRY ENGINE
-           ========================================================================= */
+        /* 8. CORE VERIFICATION, PASS-OUT & RE-ENTRY ENGINE */
         async function processScannedToken(rawTokenInput) {
             if (!rawTokenInput) return;
 
@@ -3560,10 +3430,8 @@
                 return;
             }
 
-            // -------------------------------------------------------------
-            // A. PASS-OUT / EXIT MODE
-            // -------------------------------------------------------------
-            if (currentScannerMode === 'EXIT') {
+                        // Pass-out mode
+                        if (currentScannerMode === 'EXIT') {
                 if (ticket.status === 'CHECKED_OUT') {
                     playAudioFeedback('error');
                     recordAuditLog(ticket.token, ticket.attendeeName, 'REJECTED_INVALID', gateStation, staffName, 'Attendee already exited venue');
@@ -3603,7 +3471,7 @@
                     return;
                 }
 
-                // Approve Pass-Out!
+                // Pass-out approved
                 ticket.status = 'CHECKED_OUT';
                 ticket.passedOutAt = nowISO;
                 ticket.passOutGate = gateStation;
@@ -3681,10 +3549,8 @@
                 return;
             }
 
-            // -------------------------------------------------------------
-            // B. ENTRANCE MODE: GATE TIER RESTRICTION CHECK (Phase 3)
-            // -------------------------------------------------------------
-            if (curEv && curEv.gateRestrictions && curEv.gateRestrictions[gateStation]) {
+                        // Gate tier restriction check
+                        if (curEv && curEv.gateRestrictions && curEv.gateRestrictions[gateStation]) {
                 const allowedTiers = curEv.gateRestrictions[gateStation];
                 if (Array.isArray(allowedTiers) && allowedTiers.length > 0 && !allowedTiers.includes(ticket.tier)) {
                     playAudioFeedback('error');
@@ -3712,10 +3578,8 @@
                 }
             }
 
-            // -------------------------------------------------------------
-            // C. ENTRANCE MODE: RE-ENTRY VERIFICATION
-            // -------------------------------------------------------------
-            if (ticket.status === 'CHECKED_OUT') {
+                        // Re-entry verification
+                        if (ticket.status === 'CHECKED_OUT') {
                 ticket.status = 'CHECKED_IN';
                 ticket.reEntryCount = (ticket.reEntryCount || 0) + 1;
                 ticket.scannedAt = nowISO;
@@ -3795,10 +3659,8 @@
                 return;
             }
 
-            // -------------------------------------------------------------
-            // C. ENTRANCE MODE: ANTI-DUPLICATE CHECK
-            // -------------------------------------------------------------
-            if (ticket.status === 'CHECKED_IN') {
+                        // Anti-duplicate check
+                        if (ticket.status === 'CHECKED_IN') {
                 duplicateCount++;
                 playAudioFeedback('error');
                 if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
@@ -3833,10 +3695,8 @@
                 return;
             }
 
-            // -------------------------------------------------------------
-            // D. ENTRANCE MODE: APPROVED FIRST SCAN
-            // -------------------------------------------------------------
-            ticket.status = 'CHECKED_IN';
+                        // Check-in approved
+                        ticket.status = 'CHECKED_IN';
             ticket.scannedAt = nowISO;
             ticket.scannedBy = staffName;
             ticket.scannedGate = gateStation;
@@ -4050,9 +3910,7 @@
             } catch (e) {}
         }
 
-        /* =========================================================================
-           HMAC-SHA256 CRYPTOGRAPHIC SIGNING & VERIFICATION ENGINE (PHASE 2)
-           ========================================================================= */
+        /* HMAC-SHA256 Cryptographic Signing & Verification Engine */
         async function generateHmacSignature(token, eventId, secret) {
             if (!token || !secret) return '';
             try {
@@ -4095,10 +3953,7 @@
             return sig ? `${ticket.token}.${sig}` : ticket.token;
         }
 
-
-        /* =========================================================================
-           9. TICKET ISSUANCE (SINGLE & BULK CSV) & PDF BADGES
-           ========================================================================= */
+        /* 9. TICKET ISSUANCE (SINGLE & BULK CSV) & PDF BADGES */
         function generateUUID() {
             if (typeof window !== 'undefined' && window.crypto && typeof window.crypto.randomUUID === 'function') {
                 return window.crypto.randomUUID();
@@ -4367,9 +4222,7 @@
             if (activePreviewTicket) downloadTicketPdf(activePreviewTicket.token);
         }
 
-        /* =========================================================================
-           10. PDF BADGE GENERATOR (1600x720 Canvas Render)
-           ========================================================================= */
+        /* 10. PDF BADGE GENERATOR (1600x720 Canvas Render) */
         function makeQrCanvas(text, px) {
             const holder = document.createElement('div');
             holder.style.cssText = 'position:fixed;left:-9999px;top:0;';
@@ -4407,22 +4260,18 @@
             c.width = W; c.height = H;
             const ctx = c.getContext('2d');
 
-            // White ticket body & stub
-            ctx.fillStyle = '#ffffff';
+                        ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, W, H);
 
-            // Stub background
-            ctx.fillStyle = '#f3f4f9';
+                        ctx.fillStyle = '#f3f4f9';
             ctx.fillRect(SPLIT, 0, W - SPLIT, H);
 
             const brandColor = (evt && evt.brandColor && /^#[0-9a-fA-F]{6}$/.test(evt.brandColor)) ? evt.brandColor : '#3730a3';
 
-            // Left header strip
-            ctx.fillStyle = brandColor;
+                        ctx.fillStyle = brandColor;
             ctx.fillRect(0, 0, SPLIT, 140);
 
-            // Optional Organizer Logo in Header
-            let textStartX = 60;
+                        let textStartX = 60;
             if (evt && evt.logoUrl && /^https?:\/\//i.test(evt.logoUrl)) {
                 try {
                     const img = new Image();
@@ -4446,33 +4295,28 @@
                 } catch(e) {}
             }
 
-            // Header Event Name
-            ctx.fillStyle = '#ffffff';
+                        ctx.fillStyle = '#ffffff';
             ctx.font = '800 42px Inter, sans-serif';
             ctx.textBaseline = 'alphabetic';
             ctx.fillText(fitText(ctx, evt.name, SPLIT - textStartX - 190, 42, 24, 800), textStartX, 88);
 
-            // Admit One Label
-            ctx.textAlign = 'right';
+                        ctx.textAlign = 'right';
             ctx.font = '700 24px Inter, sans-serif';
             ctx.fillStyle = '#c7d2fe';
             ctx.fillText('OFFICIAL PASS', SPLIT - 60, 88);
             ctx.textAlign = 'left';
 
-            // Attendee section
-            ctx.fillStyle = '#6b7280';
+                        ctx.fillStyle = '#6b7280';
             ctx.font = '600 22px Inter, sans-serif';
             ctx.fillText('ATTENDEE NAME', 60, 230);
 
             ctx.fillStyle = '#111827';
             ctx.fillText(fitText(ctx, t.attendeeName, SPLIT - 120, 80, 36, 800), 60, 310);
 
-            // Tier Badge Box
-            ctx.fillStyle = brandColor;
+                        ctx.fillStyle = brandColor;
             ctx.fillText(fitText(ctx, t.tier.toUpperCase(), SPLIT - 120, 32, 20, 700), 60, 370);
 
-            // Ticket Details
-            ctx.fillStyle = '#6b7280';
+                        ctx.fillStyle = '#6b7280';
             ctx.font = '600 20px Inter, sans-serif';
             ctx.fillText('DATE & VENUE', 60, 440);
             ctx.fillStyle = '#111827';
@@ -4486,13 +4330,11 @@
             ctx.font = '500 26px monospace';
             ctx.fillText(t.token, 60, 585);
 
-            // Footer note
-            ctx.fillStyle = '#9ca3af';
+                        ctx.fillStyle = '#9ca3af';
             ctx.font = '500 20px Inter, sans-serif';
             ctx.fillText('Valid for one-time admission. Duplicate presentations are flagged at gate.', 60, 660);
 
-            // Perforation Line
-            ctx.strokeStyle = '#c7c9d9';
+                        ctx.strokeStyle = '#c7c9d9';
             ctx.lineWidth = 3;
             ctx.setLineDash([12, 12]);
             ctx.beginPath();
@@ -4501,8 +4343,7 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // QR Code Stub on the Right
-            const box = 460;
+                        const box = 460;
             const bx = SPLIT + (W - SPLIT - box) / 2;
             const by = 80;
 
@@ -4553,9 +4394,7 @@
             }
         }
 
-        /* =========================================================================
-           11. REGISTRY TABLE & AUDIT LOGS RENDERING
-           ========================================================================= */
+        /* 11. REGISTRY TABLE & AUDIT LOGS RENDERING */
         function renderRegistryTable() {
             const tbody = document.getElementById('registry-tbody');
             if (!tbody) return;
@@ -4658,8 +4497,7 @@
         }
 
         function renderQuickTestButtons() {
-            // Quick simulation scanners removed for production launch
-        }
+                    }
 
         function recordAuditLog(token, name, resultType, gate, staffName, notes, opts = {}) {
             const logEntry = {
@@ -5020,9 +4858,7 @@
             }
         }
 
-        /* =========================================================================
-           12. USER / STAFF MANAGEMENT & PASSWORD RESETS
-           ========================================================================= */
+        /* 12. USER / STAFF MANAGEMENT & PASSWORD RESETS */
         function renderUsersTable() {
             const tbody = document.getElementById('users-tbody');
             if (!tbody) return;
@@ -5219,9 +5055,7 @@
             notify(`Staff account "${user.username}" was permanently deleted.`, 'ok');
         }
 
-        /* =========================================================================
-           12B. MY PROFILE & SELF-SERVICE PASSWORD RESET
-           ========================================================================= */
+        /* 12B. MY PROFILE & SELF-SERVICE PASSWORD RESET */
         function openProfileModal() {
             if (!currentUser) return;
             document.getElementById('my-profile-header-name').textContent = currentUser.fullName || currentUser.username;
@@ -5339,9 +5173,7 @@
             notify("Password successfully changed!", "ok");
         }
 
-        /* =========================================================================
-           12C. EDIT STAFF PROFILES (ADMINISTRATIVE)
-           ========================================================================= */
+        /* 12C. EDIT STAFF PROFILES (ADMINISTRATIVE) */
         function openEditStaffModal(userId) {
             const user = usersState.find(u => u.id === userId);
             if (!user) return;
@@ -5421,9 +5253,7 @@
             notify(`Profile updated for ${user.username}!`, 'ok');
         }
 
-        /* =========================================================================
-           12D. SELF-SERVE FORGOT & RESET PASSWORD (DEPRECATED FOR SECURITY)
-           ========================================================================= */
+        /* Password reset (disabled) */
         function openSelfResetModal() {
             // Password reset when not signed in is disabled.
         }
@@ -5434,9 +5264,7 @@
             if (e) e.preventDefault();
         }
 
-        /* =========================================================================
-           13. MASTER ADMIN EVENTS MANAGER
-           ========================================================================= */
+        /* 13. MASTER ADMIN EVENTS MANAGER */
         function renderEventsManager() {
             const grid = document.getElementById('events-grid');
             if (!grid) return;
@@ -5752,7 +5580,7 @@
             }
         }
 
-        /* 1-Click Clone Event Methods */
+        /* Clone event */
         function openCloneEventModal(eventId) {
             const ev = eventsState.find(e => e.id === decodeURIComponent(eventId));
             if (!ev) {
@@ -5926,9 +5754,7 @@
             }
         }
 
-        /* =========================================================================
-            14. QR INSPECT MODAL ACTIONS
-            ========================================================================= */
+        /* 14. QR INSPECT MODAL ACTIONS */
         async function openQrModal(token) {
             const ticket = ticketsState.find(t => t.token === token);
             if (!ticket) return;
@@ -5975,16 +5801,13 @@
         }
 
         function triggerModalQuickScan() {
-            // Quick scan simulation removed for production launch
-        }
+                    }
 
         function downloadActiveModalPdf() {
             if (activeModalTicket) downloadTicketPdf(activeModalTicket.token);
         }
 
-        /* =========================================================================
-           15. PHASE 3: CALENDAR INVITES, EMAIL DISPATCH & DIGITAL WALLET PASSES
-           ========================================================================= */
+        /* Calendar invites, email dispatch, and digital passes */
 
         function formatGateRestrictions(restrictions) {
             if (!restrictions || typeof restrictions !== 'object') return '';

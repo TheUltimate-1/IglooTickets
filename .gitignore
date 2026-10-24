@@ -14,5 +14,5 @@ node_modules/
 .vercel
 scratch/
 *.tmp
-.temp/
 supabase/.temp/
+*.pdf

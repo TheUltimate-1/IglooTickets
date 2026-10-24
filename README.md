@@ -1,134 +1,178 @@
-# 🎟️ IglooTickets &bull; Events E-Ticketing Manager
+# IglooTickets
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FTheUltimate-1%2FIglooTickets)
+A web-based event ticketing, badge issuance, and gate validation platform built for fast on-site access control, role-based administration, and offline resilience.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-3.0.0-emerald.svg)](config.js)
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready-purple.svg)](manifest.json)
 [![Database: Supabase](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-3ECF8E.svg)](schema.sql)
 
-**IglooTickets** is a lightweight event e-ticketing and access control platform. It features single-use QR codes, multi-role staff authentication, camera hardware scanning with anti-duplicate flash alerts, bulk CSV imports, canvas-rendered PDF ticket issuance, real-time PostgreSQL database synchronization, and full offline scanning with automated background sync.
+---
+
+## Overview
+
+IglooTickets is an event ticketing and entrance management system designed for physical event operations. It handles the end-to-end lifecycle of event access: creating events, provisioning staff accounts with granular permissions, issuing tickets (individually or via bulk CSV), and validating attendee passes at gates using standard mobile browsers and built-in cameras.
+
+The platform is designed to operate reliably under real-world venue conditions, featuring server-side atomic validation to prevent duplicate entries across concurrent turnstiles, and an offline caching engine that keeps scanners operational even if venue connectivity drops.
 
 ---
 
-## ⚡ 1-Click Instant Deployment (Vercel)
+## System Architecture
 
-Click the button below to fork and deploy IglooTickets directly onto **Vercel** with full Edge CDN acceleration and zero server maintenance:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Client Layer (PWA)                     │
+│  - Single-page application (HTML5, ES6+, Tailwind CSS)      │
+│  - Video feed QR decoder (WebRTC getUserMedia + jsQR)       │
+│  - Off-screen Canvas PDF badge engine (jsPDF)               │
+│  - Local roster cache & offline scan queue (IndexedDB)      │
+└──────────────┬──────────────────────────────┬───────────────┘
+               │ REST / WebSockets            │ HTTPS Invoke
+               ▼                              ▼
+┌──────────────────────────────┐ ┌────────────────────────────┐
+│      Supabase PostgreSQL     │ │   Supabase Edge Functions  │
+│  - Row Level Security (RLS)  │ │   (Deno / TypeScript)      │
+│  - Atomic RPCs (FOR UPDATE)  │ │  - staff-admin             │
+│  - Audit log append-only     │ │  - send-ticket-email       │
+│  - Realtime publication      │ │    (Brevo / Resend API)    │
+└──────────────────────────────┘ └────────────────────────────┘
+```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FTheUltimate-1%2FIglooTickets)
+### Core Technologies
 
-### Manual Vercel Deployment Steps:
-1. Log in to [Vercel](https://vercel.com).
-2. Click **Add New... &rarr; Project**.
-3. Import your GitHub repository: `TheUltimate-1/IglooTickets`.
-4. Click **Deploy**. Vercel will automatically detect the static project and deploy it within seconds with edge HTTPS.
-
----
-
-## 🚀 Quick Start (Instant Demo Mode)
-
-No backend configuration or local build steps are required.
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/TheUltimate-1/IglooTickets.git
-   cd IglooTickets
-   ```
-2. Open `index.html` in your browser (Chrome, Safari, Edge, Firefox).
-3. Sign in with the Master Admin account created from `schema.sql` / `config.js` (credentials are shared privately, not published here).
-4. Additional staff roles (Event Admins, Ticketing Agents, Gate Scanners) can be provisioned by the Master Admin from the **Global Staff** tab. Change the Master Admin password after first sign-in.
-
----
-
-## ✨ Key Features
-
-### 1. 🛡️ Database Hardening & Row Locks
-* **PostgreSQL Atomic RPCs**: High-throughput validation and check-in procedures (`check_in_ticket_rpc`, `pass_out_ticket_rpc`, `clone_event_rpc`) execute server-side with `FOR UPDATE` row-level locks, eliminating race conditions when multiple turnstiles scan simultaneously.
-* **Safe Search Paths & SQL Defenses**: All stored procedures enforce `SET search_path = public, pg_temp` to neutralize search path injection vulnerabilities.
-* **CSV Injection Sanitization**: All attendee and log exports escape spreadsheet formula triggers (`=`, `+`, `-`, `@`, `\t`, `\r`).
-
-### 2. ⚡ 1-Click Event Cloning
-* Duplicate any active event with a single click.
-* Inherits custom ticket tiers, gate PIN, and venue capacity while generating a fresh event code, name, and schedule.
-
-### 3. 👥 Live Venue Capacity Headcount Meter
-* Real-time venue headcount tracking:
-  $$\text{Current Occupancy} = \text{Total Checked-In} - \text{Total Passed-Out}$$
-* Displayed dynamically in both the top navigation bar and gateway scanner station with visual safety alerts (🟢 Normal Flow, ⚠️ Near Capacity, ⛔ Full Capacity).
-
-### 4. 🔄 Pass-Out & Re-Entry Tracking
-* **Entrance Mode**: Checks in valid passes, blocks duplicate scans with historical time/gate details, or verifies return passes (`RE_ENTRY`).
-* **Exit Mode**: Scanner can be toggled to "Exit (Pass-Out)" with 1 tap. Scanning an attendee marks them as temporarily exited (`CHECKED_OUT`), decrementing the venue headcount and enabling seamless re-entry verification later.
-
-### 5. 📶 Offline Pre-Cache & Background Sync (`IndexedDB`)
-* The active event's attendee roster is pre-cached directly into browser `IndexedDB`.
-* If venue cellular connectivity drops during entrance rush hours, the scanner validates tickets locally with **zero latency**.
-* Scans performed offline are queued and automatically synchronized to Supabase the moment connectivity is restored.
-
-### 6. 📱 Progressive Web App (PWA) & Asset Caching
-* Complete `manifest.json` and Service Worker (`sw.js`).
-* Gate operators can "Add to Home Screen" on iOS & Android for a fullscreen native app experience.
-* Core application shell and CDN dependencies (Tailwind, FontAwesome, jsQR, etc.) are cached for 100% offline startup.
-
-### 7. 👤 User Profile Management & Self-Service Password Reset
-* **Self-Service Profile Edit**: All users can edit their profile (Full Name, Email) and change their own password directly via the in-app modal.
-* **Self-Service Forgot Password**: Direct self-reset from the login modal allows account password recovery by username or email.
-* **Administrative Staff Directory**: Admins can edit staff profiles, modify roles, assign events, and reset credentials.
+- **Frontend**: Vanilla JavaScript (ES6+), Tailwind CSS, Font Awesome 6, Web App Manifest
+- **Scanning Engine**: WebRTC `navigator.mediaDevices.getUserMedia` with `jsQR` real-time frame analysis
+- **Pass Generation**: Off-screen HTML5 Canvas with `jsPDF` for badge output; `qrcodejs` for vector QR codes
+- **Data Ingestion**: `PapaParse` for client-side attendee roster CSV import and export
+- **Offline Storage**: Browser `IndexedDB` for local roster caching and offline scan queueing
+- **Database & Auth**: Supabase (PostgreSQL 15+) with Row Level Security, PL/pgSQL stored procedures, and GoTrue Auth
+- **Serverless API**: Supabase Edge Functions running on the Deno runtime
 
 ---
 
-## 👥 Role Hierarchy & Access Matrix
+## Key Capabilities
 
-| Feature | Master Admin | Event Admin | Ticketing Agent | Gate Scanner |
+### 1. High-Throughput Gate Validation
+- Real-time camera viewfinder with automated barcode and QR detection.
+- Sub-second validation feedback with visual and audio indicators for valid passes, duplicate scans, and revoked tickets.
+- Support for manual token input, front/rear camera switching, and hardware flashlight toggle where supported.
+
+### 2. Concurrency Control & Duplicate Prevention
+- Check-ins run through an atomic database stored procedure (`check_in_ticket_rpc`) utilizing PostgreSQL row-level locks (`SELECT ... FOR UPDATE`).
+- When multiple turnstiles scan the same pass simultaneously, only the first transaction commits; subsequent scans are immediately rejected with full details of the previous check-in (timestamp, station, and operator name).
+
+### 3. Pass-Out & Re-Entry Tracking
+- Scanners can switch between **Entrance** and **Exit** modes.
+- Scanning an attendee in Exit mode marks their pass as temporarily checked out, enabling structured re-entry verification and re-entry counts when they return.
+
+### 4. Offline Resilience
+- The active event's attendee manifest is cached locally in browser `IndexedDB`.
+- If network connectivity is lost, the scanner continues verifying tickets locally against the cached roster.
+- Scans performed offline are queued and automatically synchronized to the cloud once connectivity is restored, with collision detection for scans recorded elsewhere during the outage.
+
+### 5. Ticket Issuance & Delivery
+- Single pass generation and batch CSV ingestion with automatic field mapping.
+- Printable high-resolution landscape badges with event branding, attendee tier, barcode, and QR code.
+- Cryptographic HMAC-SHA256 signature generation for tamper-evident verification.
+- Direct digital ticket dispatch via transactional email (Brevo/Resend API), native mobile share sheets, and WhatsApp.
+- Standard RFC 5545 `.ics` calendar invite generation.
+
+### 6. Role-Based Access Control (RBAC)
+
+The system enforces strict permission boundaries across four distinct roles:
+
+| Capability | Master Admin | Event Admin | Ticketing Agent | Gate Scanner |
 | :--- | :---: | :---: | :---: | :---: |
-| **Manage Multiple Events** *(Add, clone, archive)* | ✅ All Events | ❌ | ❌ | ❌ |
-| **1-Click Event Cloning** | ✅ | ❌ | ❌ | ❌ |
-| **Event Switcher Dropdown** | ✅ Global | ✅ Assigned Events | ❌ | ❌ |
-| **Staff & User Management** *(Add user, reset password/PIN)* | ✅ All Users | ✅ Event Staff | ❌ | ❌ |
-| **Edit Staff Profiles & Roles** | ✅ All Staff | ✅ Event Staff | ❌ | ❌ |
-| **Self-Service Profile Edit & Password Reset** | ✅ | ✅ | ✅ | ✅ |
-| **Issue Individual Passes & Custom Tiers** | ✅ | ✅ | ✅ | ❌ |
-| **Bulk CSV Attendee Import** | ✅ | ✅ | ✅ | ❌ |
-| **Download PDF Tickets & Badges** | ✅ | ✅ | ✅ | ❌ |
-| **View Full Registered Attendee Details** | ✅ | ✅ | ✅ | ❌ |
-| **Mobile Gateway QR Scanner (Camera & File)** | ✅ | ✅ | ❌ | ✅ |
-| **Pass-Out & Re-Entry Tracking (Exit Mode)** | ✅ | ✅ | ❌ | ✅ |
-| **Offline IndexedDB Validation & Auto-Sync** | ✅ | ✅ | ❌ | ✅ |
-| **Live Venue Capacity Headcount Meter** | ✅ | ✅ | ❌ | ✅ |
-| **Anti-Duplicate Flash & Audit Log** | ✅ | ✅ | ❌ | ✅ |
-| **Real-time Analytics & CSV Export** | ✅ Global & Event | ✅ Event-Level | ❌ | ❌ |
+| Global event management (create, clone, archive) | Yes | Assigned only | Read-only | Read-only |
+| 1-Click event duplication | Yes | No | No | No |
+| Staff account provisioning & role assignment | All roles | Agents & Scanners | No | No |
+| Self-service profile & password management | Yes | Yes | Yes | Yes |
+| Ticket pass issuance (single & bulk CSV) | Yes | Yes | Yes | No |
+| Attendee roster export (CSV) | Yes | Yes | Yes | No |
+| Camera gate scanning & validation | Yes | Yes | No | Yes |
+| Pass-out and re-entry tracking | Yes | Yes | No | Yes |
+| Offline scan validation & auto-sync | Yes | Yes | No | Yes |
+| Analytics & entrance audit logs | Global | Event-level | No | No |
 
 ---
 
-## ⚡ Supabase Cloud Database Configuration
+## Getting Started
 
-IglooTickets is pre-configured to connect to Supabase out-of-the-box via `config.js`. If you wish to connect your own independent Supabase instance:
+### Prerequisites
 
-### Step 1: Create a Free Supabase Project
-1. Go to [supabase.com](https://supabase.com) and create a project.
-2. Set your project name and database password.
+- A modern web browser supporting WebRTC and the Web Crypto API (Chrome, Safari, Firefox, Edge).
+- A [Supabase](https://supabase.com) project (free tier is sufficient).
 
-### Step 2: Run the SQL Schema
-1. In your Supabase dashboard, click **SQL Editor** on the left menu.
-2. Open [`schema.sql`](schema.sql) from this repository.
-3. Paste the entire script into the SQL Editor and click **Run**.
-4. This creates tables, atomic RPC procedures, security indexes, row-level locks, and Realtime publications.
+### 1. Database Setup
 
-### Step 3: Connect Your Project
-1. In your Supabase dashboard, go to **Project Settings &rarr; API**.
-2. Copy your **Project URL** and **Anon Public Key**.
-3. Paste them into `config.js` or configure them dynamically in the in-app **Cloud Database Setup** modal.
+1. Open your Supabase project dashboard and navigate to the **SQL Editor**.
+2. Open [`schema.sql`](schema.sql) in this repository and execute the script. This provisions:
+   - Database tables (`events`, `app_users`, `tickets`, `audit_logs`, `gate_sessions`, `gate_login_failures`).
+   - Row Level Security (RLS) policies.
+   - Atomic stored procedures (`check_in_ticket_rpc`, `pass_out_ticket_rpc`, `clone_event_rpc`, `revoke_ticket_rpc`, `resolve_login_identifier`).
+   - Realtime replication publications.
+
+3. Create the initial Master Admin account:
+   - In Supabase Dashboard, go to **Authentication > Users** and click **Add User** with a secure password (enable *Auto Confirm User*).
+   - In the SQL Editor, execute:
+     ```sql
+     INSERT INTO public.app_users (id, username, email, role, full_name)
+     SELECT id, 'admin', email, 'MASTER_ADMIN', 'Master Admin'
+     FROM auth.users WHERE email = 'your-email@example.com'
+     ON CONFLICT (id) DO UPDATE SET role = 'MASTER_ADMIN', status = 'ACTIVE';
+     ```
+
+### 2. Client Configuration
+
+Update [`config.js`](config.js) with your Supabase credentials:
+
+```javascript
+const APP_CONFIG = {
+    supabaseUrl: 'https://your-project-id.supabase.co',
+    supabaseAnonKey: 'your-anon-publishable-key',
+    version: '3.0.0',
+    appName: 'IglooTickets',
+    minPasswordLength: 8
+};
+```
+
+### 3. Edge Functions Deployment (Optional)
+
+Privileged staff management operations and transactional email delivery are handled via Supabase Edge Functions:
+
+```bash
+# Deploy staff administration service
+supabase functions deploy staff-admin
+
+# Deploy transactional email dispatcher (optional)
+supabase functions deploy send-ticket-email
+supabase secrets set BREVO_API_KEY="your-brevo-key"
+```
+
+### 4. Running the Application
+
+Because IglooTickets is a static Progressive Web App, it requires no compilation step:
+
+- **Local Development**: Serve the project root with any local HTTP server:
+  ```bash
+  npx serve .
+  # or
+  python -m http.server 8000
+  ```
+- **Production Deployment**: Deploy the directory to any static hosting provider (Vercel, Cloudflare Pages, Netlify, AWS S3 / CloudFront, GitHub Pages).
 
 ---
 
-## 🎫 Single-Use Anti-Duplicate Security Details
+## Security Architecture
 
-* **Cryptographic Tokens**: Each pass is assigned a random 128-bit RFC4122 v4 UUID embedded in a QR code.
-* **Atomic First Scan**: On first scan, status flips to `CHECKED_IN`, recording the timestamp, scanner staff name, and entrance gate (e.g., *Gate 1*, *VIP Lane*).
-* **Duplicate Rejection Alert**: Any subsequent scan of an already-used pass triggers an immediate error tone, flashing red UI warning, and shows the exact previous check-in time, gate location, and scanner staff name.
-* **Concurrency Protection**: Even if two turnstiles scan the exact same QR code in the same millisecond, the database executes an atomic `FOR UPDATE` conditional row lock—only one succeeds, and the other is flagged instantly.
+- **Row Level Security (RLS)**: Enforced across all tables. Anonymous clients have no direct table access; authenticated staff queries are filtered by assigned event IDs and role level.
+- **Cryptographic Tokens**: Passes use 128-bit RFC 4122 v4 UUIDs generated via CSPRNG (`crypto.randomUUID` or `crypto.getRandomValues`). Optional HMAC-SHA256 signatures ensure tickets cannot be forged without the event signing secret.
+- **Credential Storage**: Passwords and authentication credentials are handled exclusively by Supabase Auth (`auth.users`) and are never stored in application-level tables.
+- **Formula Injection Mitigation**: CSV export functions sanitize cell inputs to prevent spreadsheet formula injection (`=`, `+`, `-`, `@`, `\t`, `\r`).
+- **Input Sanitization**: Client rendering implements strict HTML escaping on all attendee-supplied and staff-supplied text.
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is open-source software licensed under the [MIT License](LICENSE).
